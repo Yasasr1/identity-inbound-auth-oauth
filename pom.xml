@@ -25,7 +25,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.wso2.carbon.identity.inbound.auth.oauth2</groupId>
     <artifactId>identity-inbound-auth-oauth</artifactId>
-    <version>6.11.21</version>
+    <version>6.11.21.1-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>WSO2 Carbon OAuth module</name>
     <url>http://wso2.org</url>
@@ -971,6 +971,6 @@
 
         <!--Identity Apps-->
         <authentication.portal.version>1.0.51</authentication.portal.version>
-    </properties>
+    <project.scm.id>wso2-scm-server</project.scm.id></properties>
 
 </project>
