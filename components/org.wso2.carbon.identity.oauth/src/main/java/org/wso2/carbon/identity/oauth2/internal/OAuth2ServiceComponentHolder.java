@@ -30,6 +30,7 @@ import org.wso2.carbon.identity.oauth2.authz.validators.ResponseTypeRequestValid
 import org.wso2.carbon.identity.oauth2.bean.Scope;
 import org.wso2.carbon.identity.oauth2.client.authentication.OAuthClientAuthenticator;
 import org.wso2.carbon.identity.oauth2.keyidprovider.KeyIDProvider;
+import org.wso2.carbon.identity.oauth2.responsemode.provider.ResponseModeProvider;
 import org.wso2.carbon.identity.oauth2.token.bindings.TokenBinder;
 import org.wso2.carbon.identity.openidconnect.ClaimProvider;
 import org.wso2.carbon.identity.openidconnect.dao.ScopeClaimMappingDAO;
@@ -58,6 +59,8 @@ public class OAuth2ServiceComponentHolder {
     private static List<OAuthClientAuthenticator> authenticationHandlers = new ArrayList<>();
     private static List<ClaimProvider> claimProviders = new ArrayList<>();
     private static boolean idpIdColumnEnabled = false;
+    private static Map<String, ResponseModeProvider> responseModeProviders;
+    private static ResponseModeProvider defaultResponseModeProvider;
     private static boolean consentedTokenColumnEnabled = false;
     private List<TokenBinder> tokenBinders = new ArrayList<>();
     private Map<String, ResponseTypeRequestValidator> responseTypeRequestValidators = new HashMap<>();
@@ -413,5 +416,56 @@ public class OAuth2ServiceComponentHolder {
 
         OAuth2ServiceComponentHolder.jwtRenewWithoutRevokeAllowedGrantTypes =
                 jwtRenewWithoutRevokeAllowedGrantTypes;
+    }
+
+    /**
+     * set ResponseModeProvider map
+     */
+    public static void setResponseModeProviders(Map<String, ResponseModeProvider> responseModeProvidersMap) {
+
+        responseModeProviders = responseModeProvidersMap;
+    }
+
+    /**
+     * set DefaultResponseModeProvider
+     */
+    public static void setDefaultResponseModeProvider(ResponseModeProvider responseModeProvider) {
+
+        defaultResponseModeProvider = responseModeProvider;
+    }
+
+    /**
+     * get DefaultResponseModeProvider
+     */
+    public static ResponseModeProvider getDefaultResponseModeProvider() {
+
+        return defaultResponseModeProvider;
+    }
+
+    /**
+     * This returns responseModeProviders map with all supported (configured) response modes and their providers
+     * @return Map<String, ResponseModeProvider>
+     */
+    public static Map<String, ResponseModeProvider> getResponseModeProviders() {
+        return responseModeProviders;
+    }
+
+    /**
+     * Method to get the configured ResponseModeProvider implementation.
+     *
+     * @return the configured response mode provider for the Authorization response.
+     */
+    public static ResponseModeProvider getResponseModeProvider(String responseMode) {
+
+        if (responseMode == null) {
+            // if response mode is not provided, the DefaultResponseModeProvider is used
+            return getDefaultResponseModeProvider();
+        }
+        ResponseModeProvider responseModeProvider = responseModeProviders.get(responseMode);
+        if (responseModeProvider == null) {
+            // if response mode is not in the configured response modes, the DefaultResponseModeProvider is used
+            return getDefaultResponseModeProvider();
+        }
+        return responseModeProvider;
     }
 }
