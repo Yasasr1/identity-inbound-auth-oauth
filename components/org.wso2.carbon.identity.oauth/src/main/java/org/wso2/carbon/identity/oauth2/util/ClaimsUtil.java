@@ -784,8 +784,8 @@ public class ClaimsUtil {
                     }
                 } else {
                     if (log.isDebugEnabled()) {
-                        log.debug("A role claim values does not exist for role group claim" + roleGroupClaim +
-                                "Skipped IdP role mapping");
+                        log.debug("Claim values does not exist for role group claim: " + roleGroupClaim +
+                                ". Skipped IdP role mapping");
                     }
                 }
             }
