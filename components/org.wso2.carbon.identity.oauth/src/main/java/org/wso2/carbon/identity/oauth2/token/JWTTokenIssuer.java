@@ -101,11 +101,10 @@ public class JWTTokenIssuer extends OauthTokenIssuerImpl {
 
     private static final Log log = LogFactory.getLog(JWTTokenIssuer.class);
     private static final String INBOUND_AUTH2_TYPE = "oauth2";
-
-    private static final String CLIENT_CREDENTIALS = "client_credentials";
-    private static final String TOKEN_GENERATION_PER_REQUEST_ALLOWED_GRANT_TYPES_CONFIG =
-            "OAuth.JWTToken.IssueNewTokenPerRequest.AllowedGrantTypes.AllowedGrantType";
-    private static final String ISSUE_NEW_TOKEN_PER_REQUEST_ENABLE = "OAuth.JWTToken.IssueNewTokenPerRequest.Enable";
+    private static final String RENEW_WITHOUT_REVOKING_EXISTING_ALLOWED_GRANT_TYPES_CONFIG =
+            "OAuth.JWT.RenewWithoutRevokingExisting.AllowedGrantTypes.AllowedGrantType";
+    private static final String RENEW_WITHOUT_REVOKING_EXISTING_ENABLE_CONFIG =
+            "OAuth.JWT.RenewWithoutRevokingExisting.Enable";
     private static final String REQUEST_BINDING_TYPE = "request";
 
     // We are keeping a private key map which will have private key for each tenant domain. We are keeping this as a
@@ -744,33 +743,34 @@ public class JWTTokenIssuer extends OauthTokenIssuerImpl {
                                             OAuthTokenReqMessageContext tokReqMsgCtx) {
 
         /**
-         * If request token binding is enabled from the configurations, and current token binding is null,
-         * then we will add a new token binding (request binding) to the token binding with a value of a random UUID.
-         * The purpose of this new token binding type is to add a random value to the binding type so that
+         * If OAuth.JWT.RenewWithoutRevokingExisting is enabled from configurations, and current token
+         * binding is null,then we will add a new token binding (request binding) to the token binding with
+         * a value of a random UUID.
+         * The purpose of this new token binding type is to add a random value to the token binding so that
          * "User, Application, Scope, Binding" combination will be unique for each token.
          * Previously, if a token issue request come for the same combination of "User, Application, Scope, Binding",
          * the existing JWT token will be revoked and issue a new token. but with this way, we can issue new tokens
          * without revoking the old ones.
          *
          * Add following configuration to deployment.toml file to enable this feature.
-         *     [oauth.jwt_token.issue_new_token_per_request]
+         *     [oauth.jwt.renew_without_revoking_existing]
          *     enable = true
          *
          * By default, the allowed grant type for this feature is "client_credentials". If you need to enable for
          * other grant types, add the following configuration to deployment.toml file.
-         *     [oauth.jwt_token.issue_new_token_per_request]
+         *     [oauth.jwt.renew_without_revoking_existing]
          *     enable = true
          *     allowed_grant_types = ["client_credentials","password", ...]
          */
-        boolean issueNewTokenPerRequest = Boolean.parseBoolean(IdentityUtil.
-                getProperty(ISSUE_NEW_TOKEN_PER_REQUEST_ENABLE));
+        boolean renewWithoutRevokingExistingEnabled = Boolean.parseBoolean(IdentityUtil.
+                getProperty(RENEW_WITHOUT_REVOKING_EXISTING_ENABLE_CONFIG));
 
-        if (issueNewTokenPerRequest && tokReqMsgCtx != null && tokReqMsgCtx.getTokenBinding() == null) {
+        if (renewWithoutRevokingExistingEnabled && tokReqMsgCtx != null && tokReqMsgCtx.getTokenBinding() == null) {
             ArrayList<String> allowedGrantTypes;
             Object value = IdentityConfigParser.getInstance().getConfiguration()
-                    .get(TOKEN_GENERATION_PER_REQUEST_ALLOWED_GRANT_TYPES_CONFIG);
+                    .get(RENEW_WITHOUT_REVOKING_EXISTING_ALLOWED_GRANT_TYPES_CONFIG);
             if (value == null) {
-                allowedGrantTypes = new ArrayList<>(Arrays.asList(CLIENT_CREDENTIALS));
+                allowedGrantTypes = new ArrayList<>(Arrays.asList(OAuthConstants.GrantTypes.CLIENT_CREDENTIALS));
             } else if (value instanceof ArrayList) {
                 allowedGrantTypes = (ArrayList) value;
             } else {
