@@ -35,6 +35,8 @@ import org.wso2.carbon.identity.application.common.IdentityApplicationManagement
 import org.wso2.carbon.identity.application.common.model.ClaimConfig;
 import org.wso2.carbon.identity.application.common.model.ClaimMapping;
 import org.wso2.carbon.identity.application.common.model.IdentityProvider;
+import org.wso2.carbon.identity.application.common.model.PermissionsAndRoleConfig;
+import org.wso2.carbon.identity.application.common.model.RoleMapping;
 import org.wso2.carbon.identity.application.common.model.ServiceProvider;
 import org.wso2.carbon.identity.application.common.util.IdentityApplicationConstants;
 import org.wso2.carbon.identity.application.mgt.ApplicationManagementService;
@@ -226,11 +228,12 @@ public class ClaimsUtil {
 
         if (proxyUserAttributes) {
             setHasNonOIDCClaimsProperty(tokenReqMsgCtx);
-            return attributes;
+            return handleIdPRoleMapping(identityProvider, attributes);
         }
 
         ClaimMapping[] idPClaimMappings = identityProvider.getClaimConfig().getClaimMappings();
         Map<String, String> claimsAfterIdpMapping;
+        Map<String, String> claimsAfterIdpRoleMapping;
         Map<String, String> claimsAfterSPMapping = new HashMap<>();
         ServiceProvider serviceProvider = getServiceProvider(tokenReqMsgCtx);
 
@@ -247,8 +250,13 @@ public class ClaimsUtil {
                                     + claimsAfterIdpMapping.toString());
                 }
             }
+            claimsAfterIdpRoleMapping = handleIdPRoleMapping(identityProvider, claimsAfterIdpMapping);
+            if (isUserClaimsInTokenLoggable() && log.isDebugEnabled()) {
+                log.debug("Claims of user : " + tokenReqMsgCtx.getAuthorizedUser() + " after IDP role mapping: "
+                        + claimsAfterIdpRoleMapping);
+            }
             if (isSPRequestedClaimsExist(tokenReqMsgCtx)) {
-                claimsAfterSPMapping = ClaimsUtil.convertClaimsToOIDCDialect(tokenReqMsgCtx, claimsAfterIdpMapping);
+                claimsAfterSPMapping = ClaimsUtil.convertClaimsToOIDCDialect(tokenReqMsgCtx, claimsAfterIdpRoleMapping);
                 claimsAfterSPMapping = handleUnMappedClaims(tokenReqMsgCtx, attributes, claimsAfterSPMapping,
                         idPClaimMappings);
             } else {
@@ -270,8 +278,14 @@ public class ClaimsUtil {
                             claimsAfterIdpMapping.toString());
                 }
             }
+
+            claimsAfterIdpRoleMapping = handleIdPRoleMapping(identityProvider, claimsAfterIdpMapping);
+            if (isUserClaimsInTokenLoggable() && log.isDebugEnabled()) {
+                log.debug("Claims of user : " + tokenReqMsgCtx.getAuthorizedUser() + " after IDP role mapping: "
+                        + claimsAfterIdpRoleMapping);
+            }
             if (isSPRequestedClaimsExist(tokenReqMsgCtx)) {
-                claimsAfterSPMapping = ClaimsUtil.convertClaimsToOIDCDialect(tokenReqMsgCtx, claimsAfterIdpMapping);
+                claimsAfterSPMapping = ClaimsUtil.convertClaimsToOIDCDialect(tokenReqMsgCtx, claimsAfterIdpRoleMapping);
                 if (isUserClaimsInTokenLoggable()) {
                     if (log.isDebugEnabled()) {
                         log.debug("IDP claims do not exist but SP Claim mappings exists for, identity provider, "
@@ -284,7 +298,7 @@ public class ClaimsUtil {
                         idPClaimMappings);
             } else {
                 setHasNonOIDCClaimsProperty(tokenReqMsgCtx);
-                claimsAfterSPMapping = attributes;
+                claimsAfterSPMapping = claimsAfterIdpRoleMapping;
                 if (isUserClaimsInTokenLoggable()) {
                     if (log.isDebugEnabled()) {
                         log.debug("IDP claims and SP Claim mappings do not exists for, identity provider, "
@@ -656,6 +670,62 @@ public class ClaimsUtil {
                 .addToCacheByToken(authorizationGrantCacheKey, authorizationGrantCacheEntry);
     }
 
+
+    /**
+     * This method will update the role claim value received from the IdP using the defined role claim configuration
+     * for the IdP.
+     * Also, if "ReturnOnlyMappedLocalRoles" configuration is enabled, then server will only return the mapped role
+     * values.
+     *
+     * @param identityProvider      identity provider
+     * @param currentRoleClaimValue current role claim value.
+     * @return updated role claim string
+     */
+    public static String getUpdatedRoleClaimValue(IdentityProvider identityProvider, String currentRoleClaimValue) {
+
+        if (StringUtils.equalsIgnoreCase(IdentityApplicationConstants.RESIDENT_IDP_RESERVED_NAME, identityProvider
+                .getIdentityProviderName())) {
+            return currentRoleClaimValue;
+        }
+
+        if (isIdPRoleMappingsConfigured(identityProvider)) {
+
+            PermissionsAndRoleConfig permissionAndRoleConfig = identityProvider.getPermissionAndRoleConfig();
+            String[] receivedRoles = currentRoleClaimValue.split(FrameworkUtils.getMultiAttributeSeparator());
+            List<String> updatedRoleClaimValues = new ArrayList<>();
+            loop:
+            for (String receivedRole : receivedRoles) {
+                for (RoleMapping roleMapping : permissionAndRoleConfig.getRoleMappings()) {
+                    if (roleMapping.getRemoteRole().equals(receivedRole)) {
+                        updatedRoleClaimValues.add(roleMapping.getLocalRole().getLocalRoleName());
+                        continue loop;
+                    }
+                }
+                if (!OAuthServerConfiguration.getInstance().isReturnOnlyMappedLocalRoles()) {
+                    updatedRoleClaimValues.add(receivedRole);
+                }
+            }
+            if (!updatedRoleClaimValues.isEmpty()) {
+                return StringUtils.join(updatedRoleClaimValues, FrameworkUtils.getMultiAttributeSeparator());
+            }
+            return null;
+        }
+        // If role mappings are not configured for Idp, return the current role claim value.
+        return currentRoleClaimValue;
+    }
+
+
+    /**
+     * Asserts whether role mapping is configured for an identity provider.
+     * @param identityProvider The identity provider to be checked.
+     * @return                 Whether role mapping is configured for the identity provider
+     */
+    private static boolean isIdPRoleMappingsConfigured(IdentityProvider identityProvider) {
+
+        PermissionsAndRoleConfig permissionAndRoleConfig = identityProvider.getPermissionAndRoleConfig();
+        return permissionAndRoleConfig != null && ArrayUtils.isNotEmpty(permissionAndRoleConfig.getRoleMappings());
+    }
+
     /**
      * This method is responsible for checking whether particular claims from IDP are in local claim format.
      * @param attributes Relevant User attributes.
@@ -680,4 +750,50 @@ public class ClaimsUtil {
         }
         return localClaims;
     }
+
+    /**
+     * Handles the role mapping between resident identity provider and the federated identity provider.
+     *
+     * @param identityProvider Identity provider
+     * @param claims           A map of claims that needs to be mapped
+     * @return                 The map of claims after IdP role mapping
+     */
+    private static Map<String, String> handleIdPRoleMapping(IdentityProvider identityProvider,
+                                                            Map<String, String> claims) {
+
+        // This check is added to preserve the backwards compatibility
+        if (!OAuthServerConfiguration.getInstance().isIdPRoleMappingForJWTEnabled()) {
+            log.debug("Idp role mapping is not enabled. Skipped IdP role mapping");
+            return claims;
+        }
+        if (claims != null) {
+            for (String roleGroupClaim : IdentityUtil.getRoleGroupClaims()) {
+                String roleClaimValue = claims.get(roleGroupClaim);
+                if (StringUtils.isNotBlank(roleClaimValue)) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("Role mapping initiated for role claim value: " + roleClaimValue);
+                    }
+                    String updatedRoleClaimValue = getUpdatedRoleClaimValue(identityProvider, roleClaimValue);
+                    if (log.isDebugEnabled()) {
+                        log.debug("Role claim value after role mapping: " + updatedRoleClaimValue);
+                    }
+                    if (updatedRoleClaimValue != null) {
+                        claims.put(roleGroupClaim, updatedRoleClaimValue);
+                    } else {
+                        claims.remove(roleGroupClaim);
+                    }
+                } else {
+                    if (log.isDebugEnabled()) {
+                        log.debug("A role claim values does not exist for role group claim" + roleGroupClaim +
+                                "Skipped IdP role mapping");
+                    }
+                }
+            }
+            return claims;
+        } else {
+            log.debug("Idp role mapping was skipped because the claim set is null.");
+            return new HashMap<>();
+        }
+    }
+
 }
