@@ -101,16 +101,17 @@ public class JWTTokenIssuer extends OauthTokenIssuerImpl {
 
     private static final Log log = LogFactory.getLog(JWTTokenIssuer.class);
     private static final String INBOUND_AUTH2_TYPE = "oauth2";
-    private static final String RENEW_WITHOUT_REVOKING_EXISTING_ALLOWED_GRANT_TYPES_CONFIG =
-            "OAuth.JWT.RenewWithoutRevokingExisting.AllowedGrantTypes.AllowedGrantType";
-    private static final String RENEW_WITHOUT_REVOKING_EXISTING_ENABLE_CONFIG =
-            "OAuth.JWT.RenewWithoutRevokingExisting.Enable";
+    private static final String RENEW_TOKEN_WITHOUT_REVOKING_EXISTING_ALLOWED_GRANT_TYPES_CONFIG =
+            "OAuth.JWT.RenewTokenWithoutRevokingExisting.AllowedGrantTypes.AllowedGrantType";
+    private static final String RENEW_TOKEN_WITHOUT_REVOKING_EXISTING_ENABLE_CONFIG =
+            "OAuth.JWT.RenewTokenWithoutRevokingExisting.Enable";
     private static final String REQUEST_BINDING_TYPE = "request";
 
     // We are keeping a private key map which will have private key for each tenant domain. We are keeping this as a
     // static Map since then we don't need to read the key from keystore every time.
     private static Map<Integer, Key> privateKeys = new ConcurrentHashMap<>();
     private Algorithm signatureAlgorithm = null;
+    private ArrayList<String> allowedGrantTypes;
 
     public JWTTokenIssuer() throws IdentityOAuth2Exception {
 
@@ -122,6 +123,7 @@ public class JWTTokenIssuer extends OauthTokenIssuerImpl {
 
         // Map signature algorithm from identity.xml to nimbus format, this is a one time configuration.
         signatureAlgorithm = mapSignatureAlgorithm(config.getSignatureAlgorithm());
+        allowedGrantTypes = getAllowedGrantTypes();
     }
 
     @Override
@@ -743,7 +745,7 @@ public class JWTTokenIssuer extends OauthTokenIssuerImpl {
                                             OAuthTokenReqMessageContext tokReqMsgCtx) {
 
         /**
-         * If OAuth.JWT.RenewWithoutRevokingExisting is enabled from configurations, and current token
+         * If OAuth.JWT.RenewTokenWithoutRevokingExisting is enabled from configurations, and current token
          * binding is null,then we will add a new token binding (request binding) to the token binding with
          * a value of a random UUID.
          * The purpose of this new token binding type is to add a random value to the token binding so that
@@ -753,29 +755,19 @@ public class JWTTokenIssuer extends OauthTokenIssuerImpl {
          * without revoking the old ones.
          *
          * Add following configuration to deployment.toml file to enable this feature.
-         *     [oauth.jwt.renew_without_revoking_existing]
+         *     [oauth.jwt.renew_token_without_revoking_existing]
          *     enable = true
          *
          * By default, the allowed grant type for this feature is "client_credentials". If you need to enable for
          * other grant types, add the following configuration to deployment.toml file.
-         *     [oauth.jwt.renew_without_revoking_existing]
+         *     [oauth.jwt.renew_token_without_revoking_existing]
          *     enable = true
          *     allowed_grant_types = ["client_credentials","password", ...]
          */
         boolean renewWithoutRevokingExistingEnabled = Boolean.parseBoolean(IdentityUtil.
-                getProperty(RENEW_WITHOUT_REVOKING_EXISTING_ENABLE_CONFIG));
+                getProperty(RENEW_TOKEN_WITHOUT_REVOKING_EXISTING_ENABLE_CONFIG));
 
         if (renewWithoutRevokingExistingEnabled && tokReqMsgCtx != null && tokReqMsgCtx.getTokenBinding() == null) {
-            ArrayList<String> allowedGrantTypes;
-            Object value = IdentityConfigParser.getInstance().getConfiguration()
-                    .get(RENEW_WITHOUT_REVOKING_EXISTING_ALLOWED_GRANT_TYPES_CONFIG);
-            if (value == null) {
-                allowedGrantTypes = new ArrayList<>(Arrays.asList(OAuthConstants.GrantTypes.CLIENT_CREDENTIALS));
-            } else if (value instanceof ArrayList) {
-                allowedGrantTypes = (ArrayList) value;
-            } else {
-                allowedGrantTypes = new ArrayList<>(Collections.singletonList((String) value));
-            }
             if (allowedGrantTypes.contains(tokReqMsgCtx.getOauth2AccessTokenReqDTO().getGrantType())) {
                 String tokenBindingValue = UUIDGenerator.generateUUID();
                 tokReqMsgCtx.setTokenBinding(
@@ -790,6 +782,21 @@ public class JWTTokenIssuer extends OauthTokenIssuerImpl {
             jwtClaimsSetBuilder.claim(TOKEN_BINDING_TYPE, tokReqMsgCtx.getTokenBinding().getBindingType());
         }
         return jwtClaimsSetBuilder.build();
+    }
+
+    private static ArrayList<String> getAllowedGrantTypes() {
+
+        ArrayList<String> allowedGrantTypes;
+        Object value = IdentityConfigParser.getInstance().getConfiguration()
+                .get(RENEW_TOKEN_WITHOUT_REVOKING_EXISTING_ALLOWED_GRANT_TYPES_CONFIG);
+        if (value == null) {
+            allowedGrantTypes = new ArrayList<>(Arrays.asList(OAuthConstants.GrantTypes.CLIENT_CREDENTIALS));
+        } else if (value instanceof ArrayList) {
+            allowedGrantTypes = (ArrayList) value;
+        } else {
+            allowedGrantTypes = new ArrayList<>(Collections.singletonList((String) value));
+        }
+        return allowedGrantTypes;
     }
 
     /**
