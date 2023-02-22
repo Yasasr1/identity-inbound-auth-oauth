@@ -244,6 +244,8 @@ public class OAuthServerConfiguration {
     private boolean convertOriginalClaimsFromAssertionsToOIDCDialect = false;
     // This property will decide whether to send only mapped roles received from the federated IdP
     private boolean returnOnlyMappedLocalRoles = false;
+    // This property preserves backwards compatibility with earlier JWT role mapping behavior
+    private boolean isIdPRoleMappingEnabledForJWT = false;
 
     // Property to check whether to add remaining user attributes
     private boolean addUnmappedUserAttributes = false;
@@ -1505,6 +1507,12 @@ public class OAuthServerConfiguration {
 
     public boolean isReturnOnlyMappedLocalRoles() {
         return returnOnlyMappedLocalRoles;
+    }
+
+
+    public boolean isIdPRoleMappingForJWTEnabled() {
+
+        return isIdPRoleMappingEnabledForJWT;
     }
 
     /**
@@ -2967,6 +2975,10 @@ public class OAuthServerConfiguration {
                 returnOnlyMappedLocalRoles = Boolean
                         .parseBoolean(IdentityUtil.getProperty(ConfigElements.SEND_ONLY_LOCALLY_MAPPED_ROLES_OF_IDP));
             }
+            if (IdentityUtil.getProperty(ConfigElements.ENABLE_IDP_ROLE_MAPPING_FOR_JWT) != null) {
+                isIdPRoleMappingEnabledForJWT =
+                        Boolean.parseBoolean(IdentityUtil.getProperty(ConfigElements.ENABLE_IDP_ROLE_MAPPING_FOR_JWT));
+            }
             if (openIDConnectConfigElem.getFirstChildWithName(getQNameWithIdentityNS(ConfigElements
                     .OPENID_CONNECT_ADD_TENANT_DOMAIN_TO_ID_TOKEN)) != null) {
                 addTenantDomainToIdTokenEnabled =
@@ -3324,6 +3336,8 @@ public class OAuthServerConfiguration {
         private static final String ENABLE_FAPI_SECURITY_PROFILE = "EnableSecurityProfile";
         public static final String SEND_ONLY_LOCALLY_MAPPED_ROLES_OF_IDP = "FederatedRoleManagement"
                 + ".ReturnOnlyMappedLocalRoles";
+        public static final String ENABLE_IDP_ROLE_MAPPING_FOR_JWT = "FederatedRoleManagement"
+                + ".EnableIDPRoleMappingForJWT";
         public static final String OPENID_CONNECT_ADD_UN_MAPPED_USER_ATTRIBUTES = "AddUnmappedUserAttributes";
         public static final String SUPPORTED_CLAIMS = "OpenIDConnectClaims";
         public static final String REQUEST_OBJECT = "RequestObject";
