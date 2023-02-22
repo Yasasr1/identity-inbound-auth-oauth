@@ -72,6 +72,7 @@ public class OAuth2ServiceComponentHolder {
     private List<Scope> oauthScopeBinding = new ArrayList<>();
     private ScopeClaimMappingDAO scopeClaimMappingDAO;
     private static IdentityEventService identityEventService;
+    private static List<String> jwtRenewWithoutRevokeAllowedGrantTypes = new ArrayList<>();
 
     private OAuth2ServiceComponentHolder() {
 
@@ -390,5 +391,27 @@ public class OAuth2ServiceComponentHolder {
 
     public static void setIdentityEventService(IdentityEventService identityEventService) {
         OAuth2ServiceComponentHolder.identityEventService = identityEventService;
+    }
+
+    /**
+     * Get the list of grant types which allowed JWT renew without revoke.
+     *
+     * @return JwtRenewWithoutRevokeAllowedGrantTypes
+     */
+    public static List<String> getJwtRenewWithoutRevokeAllowedGrantTypes() {
+
+        return jwtRenewWithoutRevokeAllowedGrantTypes;
+    }
+
+    /**
+     * Set the list of grant types which allowed JWT renew without revoke.
+     *
+     * @param jwtRenewWithoutRevokeAllowedGrantTypes List of grant types.
+     */
+    public static void setJwtRenewWithoutRevokeAllowedGrantTypes(
+            List<String> jwtRenewWithoutRevokeAllowedGrantTypes) {
+
+        OAuth2ServiceComponentHolder.jwtRenewWithoutRevokeAllowedGrantTypes =
+                jwtRenewWithoutRevokeAllowedGrantTypes;
     }
 }

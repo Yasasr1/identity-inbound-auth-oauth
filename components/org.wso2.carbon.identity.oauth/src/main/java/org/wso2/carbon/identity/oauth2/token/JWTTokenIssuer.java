@@ -37,8 +37,6 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.oltu.oauth2.common.exception.OAuthSystemException;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatedUser;
 import org.wso2.carbon.identity.base.IdentityConstants;
-import org.wso2.carbon.identity.base.IdentityException;
-import org.wso2.carbon.identity.core.util.IdentityConfigParser;
 import org.wso2.carbon.identity.core.util.IdentityTenantUtil;
 import org.wso2.carbon.identity.core.util.IdentityUtil;
 import org.wso2.carbon.identity.oauth.common.OAuthConstants;
@@ -53,23 +51,20 @@ import org.wso2.carbon.identity.oauth2.token.handlers.grant.AuthorizationGrantHa
 import org.wso2.carbon.identity.oauth2.util.OAuth2Util;
 import org.wso2.carbon.identity.openidconnect.CustomClaimsCallbackHandler;
 import org.wso2.carbon.registry.core.utils.UUIDGenerator;
-import org.wso2.carbon.user.core.UserStoreException;
-import org.wso2.carbon.user.core.UserStoreManager;
-import org.wso2.carbon.user.core.util.UserCoreUtil;
 
 import java.security.Key;
 import java.security.interfaces.RSAPrivateKey;
 import java.text.ParseException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
-import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import static org.wso2.carbon.identity.oauth.common.OAuthConstants.RENEW_TOKEN_WITHOUT_REVOKING_EXISTING_ENABLE_CONFIG;
+import static org.wso2.carbon.identity.oauth.common.OAuthConstants.REQUEST_BINDING_TYPE;
 import static org.wso2.carbon.identity.oauth2.util.OAuth2Util.getPrivateKey;
 
 /**
@@ -101,17 +96,7 @@ public class JWTTokenIssuer extends OauthTokenIssuerImpl {
 
     private static final Log log = LogFactory.getLog(JWTTokenIssuer.class);
     private static final String INBOUND_AUTH2_TYPE = "oauth2";
-    private static final String RENEW_TOKEN_WITHOUT_REVOKING_EXISTING_ALLOWED_GRANT_TYPES_CONFIG =
-            "OAuth.JWT.RenewTokenWithoutRevokingExisting.AllowedGrantTypes.AllowedGrantType";
-    private static final String RENEW_TOKEN_WITHOUT_REVOKING_EXISTING_ENABLE_CONFIG =
-            "OAuth.JWT.RenewTokenWithoutRevokingExisting.Enable";
-    private static final String REQUEST_BINDING_TYPE = "request";
-
-    // We are keeping a private key map which will have private key for each tenant domain. We are keeping this as a
-    // static Map since then we don't need to read the key from keystore every time.
-    private static Map<Integer, Key> privateKeys = new ConcurrentHashMap<>();
     private Algorithm signatureAlgorithm = null;
-    private ArrayList<String> allowedGrantTypes;
 
     public JWTTokenIssuer() throws IdentityOAuth2Exception {
 
@@ -123,7 +108,6 @@ public class JWTTokenIssuer extends OauthTokenIssuerImpl {
 
         // Map signature algorithm from identity.xml to nimbus format, this is a one time configuration.
         signatureAlgorithm = mapSignatureAlgorithm(config.getSignatureAlgorithm());
-        allowedGrantTypes = getAllowedGrantTypes();
     }
 
     @Override
@@ -768,7 +752,8 @@ public class JWTTokenIssuer extends OauthTokenIssuerImpl {
                 getProperty(RENEW_TOKEN_WITHOUT_REVOKING_EXISTING_ENABLE_CONFIG));
 
         if (renewWithoutRevokingExistingEnabled && tokReqMsgCtx != null && tokReqMsgCtx.getTokenBinding() == null) {
-            if (allowedGrantTypes.contains(tokReqMsgCtx.getOauth2AccessTokenReqDTO().getGrantType())) {
+            if (OAuth2ServiceComponentHolder.getJwtRenewWithoutRevokeAllowedGrantTypes()
+                    .contains(tokReqMsgCtx.getOauth2AccessTokenReqDTO().getGrantType())) {
                 String tokenBindingValue = UUIDGenerator.generateUUID();
                 tokReqMsgCtx.setTokenBinding(
                         new TokenBinding(REQUEST_BINDING_TYPE, OAuth2Util.getTokenBindingReference(tokenBindingValue),
@@ -782,21 +767,6 @@ public class JWTTokenIssuer extends OauthTokenIssuerImpl {
             jwtClaimsSetBuilder.claim(TOKEN_BINDING_TYPE, tokReqMsgCtx.getTokenBinding().getBindingType());
         }
         return jwtClaimsSetBuilder.build();
-    }
-
-    private static ArrayList<String> getAllowedGrantTypes() {
-
-        ArrayList<String> allowedGrantTypes;
-        Object value = IdentityConfigParser.getInstance().getConfiguration()
-                .get(RENEW_TOKEN_WITHOUT_REVOKING_EXISTING_ALLOWED_GRANT_TYPES_CONFIG);
-        if (value == null) {
-            allowedGrantTypes = new ArrayList<>(Arrays.asList(OAuthConstants.GrantTypes.CLIENT_CREDENTIALS));
-        } else if (value instanceof ArrayList) {
-            allowedGrantTypes = (ArrayList) value;
-        } else {
-            allowedGrantTypes = new ArrayList<>(Collections.singletonList((String) value));
-        }
-        return allowedGrantTypes;
     }
 
     /**
