@@ -1055,6 +1055,11 @@ public class OAuthServerConfiguration {
         return supportedResponseModes;
     }
 
+    /**
+     * This method gets the configured DefaultResponseModeProvider instance.
+     *
+     * @return instance of DefaultResponseModeProvider.
+     */
     public ResponseModeProvider getDefaultResponseModeProvider() {
 
         String defaultResponseModeProviderClass = defaultResponseModeProviderClassName;

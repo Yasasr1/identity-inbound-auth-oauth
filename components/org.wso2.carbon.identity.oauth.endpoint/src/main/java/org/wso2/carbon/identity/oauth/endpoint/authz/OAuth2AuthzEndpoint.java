@@ -470,8 +470,9 @@ public class OAuth2AuthzEndpoint {
 
     /**
      * This method creates and returns AuthorizationResponseDTO instance.
-     * @param oauth2Params Oauth2 params
-     * @return AuthorizationResponseDTO DTO
+     *
+     * @param oauth2Params Oauth2 params.
+     * @return AuthorizationResponseDTO DTO.
      */
     private AuthorizationResponseDTO getAuthResponseDTO(OAuth2Parameters oauth2Params) {
 
@@ -489,8 +490,9 @@ public class OAuth2AuthzEndpoint {
 
     /**
      * This returns the ResponseModeProvider that can handle a given authorize response.
-     * @param authorizationResponseDTO AuthorizationResponseDTO instance
-     * @return ResponseModeProvider
+     *
+     * @param authorizationResponseDTO AuthorizationResponseDTO instance.
+     * @return ResponseModeProvider.
      */
     private ResponseModeProvider getResponseModeProvider(AuthorizationResponseDTO authorizationResponseDTO) {
 
@@ -507,7 +509,8 @@ public class OAuth2AuthzEndpoint {
 
     /**
      * This returns the QueryResponseModeProvider.
-     * @return ResponseModeProvider: QueryResponseModeProvider
+     *
+     * @return ResponseModeProvider: QueryResponseModeProvider.
      */
     private ResponseModeProvider getQueryResponseModeProvider() {
 
@@ -515,13 +518,14 @@ public class OAuth2AuthzEndpoint {
     }
 
     /**
-     * Method to check a successful form_post flow
-     * @param oAuthMessage OAuthMessage instance
-     * @param authorizationResponseDTO AuthorizationResponseDTO instance
-     * @return true if response mode is form_post without errors
+     * Method to check a successful form_post flow.
+     *
+     * @param oAuthMessage OAuthMessage instance.
+     * @param authorizationResponseDTO AuthorizationResponseDTO instance.
+     * @return true if response mode is form_post without errors.
      */
-    private boolean isFormPostWithoutErrors (OAuthMessage oAuthMessage, AuthorizationResponseDTO
-            authorizationResponseDTO) {
+    private boolean isFormPostWithoutErrors (OAuthMessage oAuthMessage,
+                                             AuthorizationResponseDTO authorizationResponseDTO) {
 
         return isFormPostResponseMode(oAuthMessage, authorizationResponseDTO.getRedirectUrl()) ||
                 (!authorizationResponseDTO.isError() && isFormPostResponseMode(oAuthMessage,
@@ -529,13 +533,15 @@ public class OAuth2AuthzEndpoint {
     }
 
     /**
-     * Method to check form_post flow with error
-     * @param authorizationResponseDTO AuthorizationResponseDTO instance
-     * @param responseModeProvider ResponseModeProvider instance
-     * @return true if response mode is form_post with errors
+     * Method to check form_post flow with error.
+     *
+     * @param authorizationResponseDTO AuthorizationResponseDTO instance.
+     * @param responseModeProvider ResponseModeProvider instance.
+     * @return true if response mode is form_post with errors.
      */
     private boolean isFormPostWithErrors(AuthorizationResponseDTO authorizationResponseDTO,
                                          ResponseModeProvider responseModeProvider) {
+
         return authorizationResponseDTO.isError() &&
                 (ResponseModeProvider.AuthResponseType.POST_RESPONSE.equals
                         (responseModeProvider.getAuthResponseType()))
@@ -599,7 +605,6 @@ public class OAuth2AuthzEndpoint {
             if (isFormPostWithoutErrors(oAuthMessage, authorizationResponseDTO)) {
                 handleFormPostResponseMode(oAuthMessage, sessionState, authorizationResponseDTO);
                 return Response.ok(responseModeProvider.getAuthResponseBuilderEntity(authorizationResponseDTO)).build();
-
             } else {
                 if (isFormPostWithErrors(authorizationResponseDTO, responseModeProvider)) {
 
@@ -930,7 +935,6 @@ public class OAuth2AuthzEndpoint {
         authorizationResponseDTO.setError(HttpServletResponse.SC_FOUND, consentDenialException.getMessage(),
                 OAuth2ErrorCodes.ACCESS_DENIED);
         authorizationResponseDTO.setRedirectUrl(oauth2Params.getRedirectURI());
-
     }
 
     private OAuthProblemException buildConsentDenialException(OAuthErrorDTO oAuthErrorDTO) {
@@ -1849,7 +1853,7 @@ public class OAuth2AuthzEndpoint {
      * @param request http servlet request.
      * @return instance of OAuthAuthzRequest.
      * @throws OAuthProblemException thrown when initializing the OAuthAuthzRequestClass instance.
-     * @throws OAuthSystemException  thrown when initializing the OAuthAuthzRequestClass instance.
+     * @throws OAuthSystemException thrown when initializing the OAuthAuthzRequestClass instance.
      */
     private OAuthAuthzRequest getOAuthAuthzRequest(HttpServletRequest request)
             throws OAuthProblemException, OAuthSystemException {
