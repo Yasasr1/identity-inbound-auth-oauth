@@ -605,6 +605,9 @@ public class OAuth2AuthzEndpoint {
 
             if (isFormPostWithoutErrors(oAuthMessage, authorizationResponseDTO)) {
                 handleFormPostResponseMode(oAuthMessage, sessionState, authorizationResponseDTO);
+                if (authorizationResponseDTO.getIsForwardToOAuthResponseJSP()) {
+                    return Response.ok().build();
+                }
                 return Response.ok(responseModeProvider.getAuthResponseBuilderEntity(authorizationResponseDTO)).build();
             } else {
                 if (isFormPostWithErrors(authorizationResponseDTO, responseModeProvider)) {
@@ -890,10 +893,11 @@ public class OAuth2AuthzEndpoint {
         }
 
         if (OAuthServerConfiguration.getInstance().isOAuthResponseJspPageAvailable()) {
-            String params = buildParams(authorizationResponseDTO.getRedirectUrl(), authenticatedIdPs,
-                    sessionStateValue);
+            String params = buildParams(authorizationResponseDTO.getSuccessResponseDTO().getFormPostBody(),
+                    authenticatedIdPs, sessionStateValue);
             String redirectURI = oauth2Params.getRedirectURI();
             forwardToOauthResponseJSP(oAuthMessage, params, redirectURI);
+            authorizationResponseDTO.setIsForwardToOAuthResponseJSP(true);
         } else {
             authorizationResponseDTO.setAuthenticatedIDPs(authenticatedIdPs);
         }
@@ -1073,10 +1077,10 @@ public class OAuth2AuthzEndpoint {
 
         if (!authorizationResponseDTO.getIsConsentRedirect()) {
             if (isFormPostWithoutErrors(oAuthMessage, authorizationResponseDTO)) {
-                if (authorizationResponseDTO.getIsConsentRedirect()) {
-                    return Response.status(HttpServletResponse.SC_FOUND).location(new URI(redirectURL)).build();
-                }
                 handleFormPostResponseMode(oAuthMessage, sessionState, authorizationResponseDTO);
+                if (authorizationResponseDTO.getIsForwardToOAuthResponseJSP()) {
+                    return Response.ok().build();
+                }
                 return Response.ok(responseModeProvider.getAuthResponseBuilderEntity(authorizationResponseDTO)).build();
             } else {
                 if (isFormPostWithErrors(authorizationResponseDTO, responseModeProvider)) {
