@@ -405,6 +405,7 @@ public class AuthorizationHandlerManager {
      */
     private void removeAllowedScopesFromRequestedScopes(OAuthAuthzReqMessageContext authzReqMsgCtx, List<String>
             requestedAllowedScopes) {
+
         if (authzReqMsgCtx.getAuthorizationReqDTO().getScopes() == null) {
             return;
         }
