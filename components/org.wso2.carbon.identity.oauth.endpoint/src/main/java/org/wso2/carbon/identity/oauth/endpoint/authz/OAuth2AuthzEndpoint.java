@@ -1391,7 +1391,7 @@ public class OAuth2AuthzEndpoint {
         // authorizing the request
         OAuth2AuthorizeRespDTO authzRespDTO = authorize(oAuthAuthzReqMessageContext);
 
-        if (authzRespDTO.getCallbackURI() == null) {
+        if (authzRespDTO.getCallbackURI() != null) {
             authorizationResponseDTO.setRedirectUrl(authzRespDTO.getCallbackURI());
         }
         if (isSuccessfulAuthorization(authzRespDTO)) {
