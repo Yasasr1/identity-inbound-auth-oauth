@@ -103,6 +103,7 @@ public class UserAuthenticationEndpoint {
                     commonAuthRequestWrapper.setParameter(Constants.SCOPE, scope);
                 }
                 commonAuthRequestWrapper.setParameter(Constants.NONCE, userCode);
+                commonAuthRequestWrapper.setAttribute(OAuthConstants.PKCE_UNSUPPORTED_FLOW, true);
                 return oAuth2AuthzEndpoint.authorize(commonAuthRequestWrapper, response);
             } else {
                 if (log.isDebugEnabled()) {
