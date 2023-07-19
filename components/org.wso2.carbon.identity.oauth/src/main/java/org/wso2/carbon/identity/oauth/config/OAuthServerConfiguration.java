@@ -154,6 +154,7 @@ public class OAuthServerConfiguration {
     private boolean accessTokenPartitioningEnabled = false;
     private boolean redirectToRequestedRedirectUriEnabled = true;
     private boolean allowCrossTenantIntrospection = true;
+    private boolean skipOIDCClaimsForClientCredentialGrant = false;
     private String accessTokenPartitioningDomains = null;
     private TokenPersistenceProcessor persistenceProcessor = null;
     private Set<OAuthCallbackHandlerMetaData> callbackHandlerMetaData = new HashSet<>();
@@ -3252,6 +3253,17 @@ public class OAuthServerConfiguration {
         }
     }
 
+    private void parseSkipOIDCClaimsForClientCredentialGrantConfig(OMElement oauthElem) {
+
+        OMElement skipOIDCClaimsForClientCredentialGrantElement = oauthElem
+                .getFirstChildWithName(getQNameWithIdentityNS(ConfigElements
+                        .SKIP_OIDC_CLAIMS_FOR_CLIENT_CREDENTIAL_GRANT));
+        if (skipOIDCClaimsForClientCredentialGrantElement != null) {
+            skipOIDCClaimsForClientCredentialGrant = Boolean.parseBoolean(
+                    skipOIDCClaimsForClientCredentialGrantElement.getText().trim());
+        }
+    }
+
     /**
      * This method returns the value of the property AllowCrossTenantTokenIntrospection for the OAuth configuration
      * in identity.xml.
@@ -3259,6 +3271,11 @@ public class OAuthServerConfiguration {
     public boolean isCrossTenantTokenIntrospectionAllowed() {
 
         return allowCrossTenantIntrospection;
+    }
+
+    public boolean isSkipOIDCClaimsForClientCredentialGrant() {
+
+        return skipOIDCClaimsForClientCredentialGrant;
     }
 
     private static void setOAuthResponseJspPageAvailable() {
@@ -3520,6 +3537,8 @@ public class OAuthServerConfiguration {
 
         // FAPI Configurations
         private static final String FAPI = "FAPI";
+        private static final String SKIP_OIDC_CLAIMS_FOR_CLIENT_CREDENTIAL_GRANT =
+                "SkipOIDCClaimsForClientCredentialGrant";
     }
 
 }
