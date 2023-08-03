@@ -45,6 +45,9 @@ import org.wso2.carbon.identity.oauth.internal.OAuthComponentServiceHolder;
 import org.wso2.carbon.identity.oauth2.IdentityOAuth2Exception;
 import org.wso2.carbon.identity.oauth2.RequestObjectException;
 import org.wso2.carbon.identity.oauth2.authz.OAuthAuthzReqMessageContext;
+import org.wso2.carbon.identity.oauth2.device.cache.DeviceAuthorizationGrantCache;
+import org.wso2.carbon.identity.oauth2.device.cache.DeviceAuthorizationGrantCacheEntry;
+import org.wso2.carbon.identity.oauth2.device.cache.DeviceAuthorizationGrantCacheKey;
 import org.wso2.carbon.identity.oauth2.dto.OAuth2AuthorizeReqDTO;
 import org.wso2.carbon.identity.oauth2.internal.OAuth2ServiceComponentHolder;
 import org.wso2.carbon.identity.oauth2.model.RefreshTokenValidationDataDO;
@@ -74,6 +77,7 @@ import static org.wso2.carbon.identity.oauth.common.OAuthConstants.ACCESS_TOKEN;
 import static org.wso2.carbon.identity.oauth.common.OAuthConstants.AUTHZ_CODE;
 import static org.wso2.carbon.identity.oauth.common.OAuthConstants.OIDCClaims.ADDRESS;
 import static org.wso2.carbon.identity.oauth.common.OAuthConstants.OIDCClaims.GROUPS;
+import static org.wso2.carbon.identity.oauth2.device.constants.Constants.DEVICE_CODE;
 
 /**
  * Default implementation of {@link CustomClaimsCallbackHandler}. This callback handler populates available user
@@ -287,6 +291,14 @@ public class DefaultOIDCClaimsCallbackHandler implements CustomClaimsCallbackHan
             }
         }
 
+        // Check for claims cached against the device code.
+        if (isEmpty(userAttributes)) {
+            if (log.isDebugEnabled()) {
+                log.debug("No claims cached against the authorization_code for user: " +
+                        requestMsgCtx.getAuthorizedUser() + ". Retrieving claims cached against the device code.");
+            }
+            userAttributes = getUserAttributesCachedAgainstDeviceCode(getDeviceCode(requestMsgCtx));
+        }
         /* When building the jwt token, we cannot add it to authorization cache, as we save entries against, access
          token. Hence if it is added against authenticated user object.*/
         if (isEmpty(userAttributes)) {
@@ -357,6 +369,17 @@ public class DefaultOIDCClaimsCallbackHandler implements CustomClaimsCallbackHan
             userAttributes = getUserAttributesFromCacheUsingToken(accessToken);
         }
         return userAttributes;
+    }
+
+    private Map<ClaimMapping, String> getUserAttributesCachedAgainstDeviceCode(String deviceCode) {
+
+        if (StringUtils.isEmpty(deviceCode)) {
+            return Collections.emptyMap();
+        }
+        DeviceAuthorizationGrantCacheKey cacheKey = new DeviceAuthorizationGrantCacheKey(deviceCode);
+        DeviceAuthorizationGrantCacheEntry cacheEntry =
+                DeviceAuthorizationGrantCache.getInstance().getValueFromCache(cacheKey);
+        return cacheEntry == null ? Collections.emptyMap() : cacheEntry.getUserAttributes();
     }
 
     private Map<String, Object> getUserClaimsInOIDCDialect(OAuthAuthzReqMessageContext authzReqMessageContext)
@@ -777,6 +800,11 @@ public class DefaultOIDCClaimsCallbackHandler implements CustomClaimsCallbackHan
 
     private String getAuthorizationCode(OAuthTokenReqMessageContext requestMsgCtx) {
         return (String) requestMsgCtx.getProperty(AUTHZ_CODE);
+    }
+
+    private String getDeviceCode(OAuthTokenReqMessageContext requestMsgCtx) {
+
+        return (String) requestMsgCtx.getProperty(DEVICE_CODE);
     }
 
     private String getAccessToken(OAuthTokenReqMessageContext requestMsgCtx) {

@@ -329,6 +329,7 @@ public class OAuth2Util {
 
     private static Map<Integer, Certificate> publicCerts = new ConcurrentHashMap<Integer, Certificate>();
     private static Map<Integer, Key> privateKeys = new ConcurrentHashMap<Integer, Key>();
+    private static boolean subjectIdentifierColumnAvailableInDeviceCodeTable = false;
 
     // Supported Signature Algorithms
     private static final String NONE = "NONE";
@@ -4645,5 +4646,30 @@ public class OAuth2Util {
         }
 
         return allowedGrantTypes;
+    }
+
+    /**
+     * Checking whether the SUBJECT_IDENTIFIER column is available in the IDN_OAUTH2_DEVICE_FLOW table.
+     *
+     * @return True if the column is available.
+     */
+    public static boolean checkSubjectIdentifierColumnAvailabilityInDeviceCodeTable() {
+
+        return FrameworkUtils.isTableColumnExists("IDN_OAUTH2_DEVICE_FLOW", "SUBJECT_IDENTIFIER");
+    }
+
+    public static void setSubjectIdentifierColumnIsAvailableInDeviceCodeTable(boolean isSubIdentifierColumnAvailable) {
+
+        OAuth2Util.subjectIdentifierColumnAvailableInDeviceCodeTable = isSubIdentifierColumnAvailable;
+    }
+
+    /**
+     * Return whether the SUBJECT_IDENTIFIER column is available in the IDN_OAUTH2_DEVICE_FLOW table.
+     *
+     * @return True if SUBJECT_IDENTIFIER is available in IDN_OAUTH2_DEVICE_FLOW table. Else return false.
+     */
+    public static boolean isSubjectIdentifierColumnAvailableInDeviceCodeTable() {
+
+        return subjectIdentifierColumnAvailableInDeviceCodeTable;
     }
 }
