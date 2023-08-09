@@ -476,11 +476,20 @@ public class JWTTokenIssuer extends OauthTokenIssuerImpl {
         jwtClaimsSetBuilder.audience(audience);
         JWTClaimsSet jwtClaimsSet;
 
-        // Handle custom claims
-        if (authAuthzReqMessageContext != null) {
-            jwtClaimsSet = handleCustomClaims(jwtClaimsSetBuilder, authAuthzReqMessageContext);
+        if (tokenReqMessageContext != null &&
+                tokenReqMessageContext.getOauth2AccessTokenReqDTO() != null &&
+                StringUtils.equals(tokenReqMessageContext.getOauth2AccessTokenReqDTO().getGrantType(),
+                        OAuthConstants.GrantTypes.CLIENT_CREDENTIALS) &&
+                OAuthServerConfiguration.getInstance().isSkipOIDCClaimsForClientCredentialGrant()) {
+
+            jwtClaimsSet = jwtClaimsSetBuilder.build();
         } else {
-            jwtClaimsSet = handleCustomClaims(jwtClaimsSetBuilder, tokenReqMessageContext);
+            // Handle custom claims
+            if (authAuthzReqMessageContext != null) {
+                jwtClaimsSet = handleCustomClaims(jwtClaimsSetBuilder, authAuthzReqMessageContext);
+            } else {
+                jwtClaimsSet = handleCustomClaims(jwtClaimsSetBuilder, tokenReqMessageContext);
+            }
         }
         // Include token binding.
         jwtClaimsSet = handleTokenBinding(jwtClaimsSetBuilder, tokenReqMessageContext);
