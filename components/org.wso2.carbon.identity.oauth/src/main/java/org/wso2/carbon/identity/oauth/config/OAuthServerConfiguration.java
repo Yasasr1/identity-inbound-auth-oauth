@@ -371,6 +371,8 @@ public class OAuthServerConfiguration {
         // if enabled access token and refresh token will be renewed for each token endpoint call.
         parseTokenRenewalPerRequestConfiguration(oauthElem);
 
+        parseSkipOIDCClaimsForClientCredentialGrantConfig(oauthElem);
+
         // read refresh token renewal config
         parseRefreshTokenRenewalConfiguration(oauthElem);
 
