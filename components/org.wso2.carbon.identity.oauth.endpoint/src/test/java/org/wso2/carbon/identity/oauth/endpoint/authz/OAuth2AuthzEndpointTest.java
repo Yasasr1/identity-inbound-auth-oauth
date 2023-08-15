@@ -58,6 +58,7 @@ import org.wso2.carbon.identity.application.authentication.framework.model.Commo
 import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants;
 import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkUtils;
 import org.wso2.carbon.identity.application.common.IdentityApplicationManagementException;
+import org.wso2.carbon.identity.application.common.model.Claim;
 import org.wso2.carbon.identity.application.common.model.ClaimMapping;
 import org.wso2.carbon.identity.application.common.model.ServiceProvider;
 import org.wso2.carbon.identity.application.common.model.ServiceProviderProperty;
@@ -95,6 +96,9 @@ import org.wso2.carbon.identity.oauth2.OAuth2ScopeService;
 import org.wso2.carbon.identity.oauth2.OAuth2Service;
 import org.wso2.carbon.identity.oauth2.authz.AuthorizationHandlerManager;
 import org.wso2.carbon.identity.oauth2.authz.OAuthAuthzReqMessageContext;
+import org.wso2.carbon.identity.oauth2.device.api.DeviceAuthService;
+import org.wso2.carbon.identity.oauth2.device.api.DeviceAuthServiceImpl;
+import org.wso2.carbon.identity.oauth2.device.constants.Constants;
 import org.wso2.carbon.identity.oauth2.dto.OAuth2AuthorizeReqDTO;
 import org.wso2.carbon.identity.oauth2.dto.OAuth2AuthorizeRespDTO;
 import org.wso2.carbon.identity.oauth2.dto.OAuth2ClientValidationResponseDTO;
@@ -106,6 +110,7 @@ import org.wso2.carbon.identity.oauth2.util.OAuth2Util;
 import org.wso2.carbon.identity.oidc.session.OIDCSessionManager;
 import org.wso2.carbon.identity.oidc.session.OIDCSessionState;
 import org.wso2.carbon.identity.oidc.session.util.OIDCSessionManagementUtil;
+import org.wso2.carbon.identity.openidconnect.DefaultOIDCClaimsCallbackHandler;
 import org.wso2.carbon.identity.openidconnect.OIDCConstants;
 import org.wso2.carbon.identity.openidconnect.OpenIDConnectClaimFilterImpl;
 import org.wso2.carbon.identity.openidconnect.RequestObjectService;
@@ -129,6 +134,7 @@ import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.Vector;
 import java.util.concurrent.ConcurrentHashMap;
@@ -2363,5 +2369,43 @@ public class OAuth2AuthzEndpointTest extends TestOAuthEndpointBase {
         method.invoke(authzEndpointObject, oAuthMessage, validationResponseDTO);
         //PKCE mandoatory should be false when we set PKCE_UNSUPPORTED_FLOW attribute
         assertEquals(validationResponseDTO.isPkceMandatory(), false);
+    }
+
+    @Test
+    public void testDeviceCodeGrantCachedClaims () throws Exception {
+        String userCode = "dummyUserCode";
+        String deviceCode = "dummyDeviceCode";
+        String email = "dummyEmail@gmail.com";
+        oAuth2AuthzEndpoint = new OAuth2AuthzEndpoint();
+        OAuth2AuthzEndpoint oAuth2AuthzEndpointSpy = spy(new OAuth2AuthzEndpoint());
+        mockStatic(FrameworkUtils.class);
+        when(FrameworkUtils.getMultiAttributeSeparator()).thenReturn(",");
+        DefaultOIDCClaimsCallbackHandler defaultOIDCClaimsCallbackHandler = new DefaultOIDCClaimsCallbackHandler();
+        Method method1 = authzEndpointObject.getClass().getDeclaredMethod(
+                "cacheUserAttributesByDeviceCode", SessionDataCacheEntry.class);
+        Method method2 = DefaultOIDCClaimsCallbackHandler.class.getDeclaredMethod(
+                "getUserAttributesCachedAgainstDeviceCode", String.class);
+        SessionDataCacheEntry sessionDataCacheEntry = mock(SessionDataCacheEntry.class);
+        DeviceAuthService deviceAuthService = mock(DeviceAuthServiceImpl.class);
+        Map<String, String[]> paramMap = new HashMap<>();
+        paramMap.put(Constants.USER_CODE, new String[]{userCode});
+        Map<ClaimMapping, String> userAttributes = new HashMap<>();
+        AuthenticatedUser loggedInUser = new AuthenticatedUser();
+        ClaimMapping claimMapping = new ClaimMapping();
+        Claim claim = new Claim();
+        claim.setClaimUri("email");
+        claimMapping.setLocalClaim(claim);
+        userAttributes.put(claimMapping, email);
+        when(sessionDataCacheEntry.getLoggedInUser()).thenReturn(loggedInUser);
+        sessionDataCacheEntry.getLoggedInUser().setUserAttributes(userAttributes);
+        when(sessionDataCacheEntry.getParamMap()).thenReturn(paramMap);
+        method1.setAccessible(true);
+        method2.setAccessible(true);
+        oAuth2AuthzEndpoint.setDeviceAuthService(deviceAuthService);
+        doReturn(Optional.of(deviceCode)).when(oAuth2AuthzEndpointSpy, "getDeviceCodeByUserCode", anyString());
+        method1.invoke(oAuth2AuthzEndpointSpy, sessionDataCacheEntry);
+        Map<ClaimMapping, String> attributeFromCache = (Map<ClaimMapping, String>)
+                method2.invoke(defaultOIDCClaimsCallbackHandler, deviceCode);
+        assertEquals(attributeFromCache.get(claimMapping), userAttributes.get(claimMapping));
     }
 }
