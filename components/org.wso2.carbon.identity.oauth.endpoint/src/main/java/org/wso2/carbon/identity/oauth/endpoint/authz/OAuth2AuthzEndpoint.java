@@ -92,6 +92,11 @@ import org.wso2.carbon.identity.oauth2.IdentityOAuth2UnauthorizedScopeException;
 import org.wso2.carbon.identity.oauth2.OAuth2Service;
 import org.wso2.carbon.identity.oauth2.RequestObjectException;
 import org.wso2.carbon.identity.oauth2.authz.OAuthAuthzReqMessageContext;
+import org.wso2.carbon.identity.oauth2.device.api.DeviceAuthService;
+import org.wso2.carbon.identity.oauth2.device.cache.DeviceAuthorizationGrantCache;
+import org.wso2.carbon.identity.oauth2.device.cache.DeviceAuthorizationGrantCacheEntry;
+import org.wso2.carbon.identity.oauth2.device.cache.DeviceAuthorizationGrantCacheKey;
+import org.wso2.carbon.identity.oauth2.device.constants.Constants;
 import org.wso2.carbon.identity.oauth2.dto.OAuth2AuthorizeReqDTO;
 import org.wso2.carbon.identity.oauth2.dto.OAuth2AuthorizeRespDTO;
 import org.wso2.carbon.identity.oauth2.dto.OAuth2ClientValidationResponseDTO;
@@ -228,6 +233,7 @@ public class OAuth2AuthzEndpoint {
     private static final String OIDC_DIALECT = "http://wso2.org/oidc/claim";
 
     private static OpenIDConnectClaimFilterImpl openIDConnectClaimFilter;
+    private DeviceAuthService deviceAuthService;
 
     public static OpenIDConnectClaimFilterImpl getOpenIDConnectClaimFilter() {
 
@@ -237,6 +243,16 @@ public class OAuth2AuthzEndpoint {
     public static void setOpenIDConnectClaimFilter(OpenIDConnectClaimFilterImpl openIDConnectClaimFilter) {
 
         OAuth2AuthzEndpoint.openIDConnectClaimFilter = openIDConnectClaimFilter;
+    }
+
+    /**
+     * Set the device authentication service.
+     *
+     * @param deviceAuthService Device authentication service.
+     */
+    public void setDeviceAuthService(DeviceAuthService deviceAuthService) {
+
+        this.deviceAuthService = deviceAuthService;
     }
 
     private static Class<? extends OAuthAuthzRequest> oAuthAuthzRequestClass;
@@ -1359,6 +1375,9 @@ public class OAuth2AuthzEndpoint {
                 }
             }
             setAuthorizationCode(oAuthMessage, authzRespDTO, builder, tokenBindingValue);
+        }
+        if (Constants.RESPONSE_TYPE_DEVICE.equalsIgnoreCase(responseType)) {
+            cacheUserAttributesByDeviceCode(oAuthMessage.getSessionDataCacheEntry());
         }
         if (isResponseTypeNotIdTokenOrNone(responseType, authzRespDTO)) {
             setAccessToken(authzRespDTO, builder);
@@ -3743,5 +3762,38 @@ public class OAuth2AuthzEndpoint {
     private boolean isPromptSelectAccount(OAuth2Parameters oauth2Params) {
 
         return (OAuthConstants.Prompt.SELECT_ACCOUNT).equals(oauth2Params.getPrompt());
+    }
+    private void cacheUserAttributesByDeviceCode(SessionDataCacheEntry sessionDataCacheEntry)
+            throws OAuthSystemException {
+
+        String userCode = null;
+        Optional<String> deviceCodeOptional = Optional.empty();
+        String[] userCodeArray = sessionDataCacheEntry.getParamMap().get(Constants.USER_CODE);
+        if (ArrayUtils.isNotEmpty(userCodeArray)) {
+            userCode = userCodeArray[0];
+        }
+        if (StringUtils.isNotBlank(userCode)) {
+            deviceCodeOptional = getDeviceCodeByUserCode(userCode);
+        }
+        if (deviceCodeOptional.isPresent()) {
+            addUserAttributesToCache(sessionDataCacheEntry, deviceCodeOptional.get());
+        }
+    }
+
+    private Optional<String> getDeviceCodeByUserCode(String userCode) throws OAuthSystemException {
+
+        try {
+            return deviceAuthService.getDeviceCode(userCode);
+        } catch (IdentityOAuth2Exception e) {
+            throw new OAuthSystemException("Error occurred while retrieving device code for user code: " + userCode, e);
+        }
+    }
+
+    private void addUserAttributesToCache(SessionDataCacheEntry sessionDataCacheEntry, String deviceCode) {
+
+        DeviceAuthorizationGrantCacheKey cacheKey = new DeviceAuthorizationGrantCacheKey(deviceCode);
+        DeviceAuthorizationGrantCacheEntry cacheEntry =
+                new DeviceAuthorizationGrantCacheEntry(sessionDataCacheEntry.getLoggedInUser().getUserAttributes());
+        DeviceAuthorizationGrantCache.getInstance().addToCache(cacheKey, cacheEntry);
     }
 }

@@ -99,6 +99,7 @@ import static org.wso2.carbon.identity.oauth2.device.constants.Constants.DEVICE_
 import static org.wso2.carbon.identity.oauth2.util.OAuth2Util.checkAudienceEnabled;
 import static org.wso2.carbon.identity.oauth2.util.OAuth2Util.checkConsentedTokenColumnAvailable;
 import static org.wso2.carbon.identity.oauth2.util.OAuth2Util.checkIDPIdColumnAvailable;
+import static org.wso2.carbon.identity.oauth2.util.OAuth2Util.checkSubjectIdentifierColumnAvailabilityInDeviceCodeTable;
 import static org.wso2.carbon.identity.oauth2.util.OAuth2Util.getJWTRenewWithoutRevokeAllowedGrantTypes;
 
 /**
@@ -321,6 +322,18 @@ public class OAuth2ServiceComponent {
             } else {
                 log.debug("CONSENTED_TOKEN column is not available in IDN_OAUTH2_ACCESS_TOKEN table. Hence " +
                         "setting consentedColumnAvailable to false.");
+            }
+        }
+
+        boolean isSubjectIdentifierColumnAvailable = checkSubjectIdentifierColumnAvailabilityInDeviceCodeTable();
+        OAuth2Util.setSubjectIdentifierColumnIsAvailableInDeviceCodeTable(isSubjectIdentifierColumnAvailable);
+        if (log.isDebugEnabled()) {
+            if (isSubjectIdentifierColumnAvailable) {
+                log.debug("SUBJECT_IDENTIFIER column is available in IDN_OAUTH2_DEVICE_FLOW table. Hence setting " +
+                        "subjectIdentifierColumnAvailable to true.");
+            } else {
+                log.debug("SUBJECT_IDENTIFIER column is not available in IDN_OAUTH2_DEVICE_FLOW table. Hence " +
+                        "setting subjectIdentifierColumnAvailable to false.");
             }
         }
     }
