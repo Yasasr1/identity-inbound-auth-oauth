@@ -51,6 +51,7 @@ import org.wso2.carbon.identity.application.authentication.framework.context.Ses
 import org.wso2.carbon.identity.application.authentication.framework.handler.request.RequestCoordinator;
 import org.wso2.carbon.identity.application.authentication.framework.handler.request.impl.consent.ConsentClaimsData;
 import org.wso2.carbon.identity.application.authentication.framework.handler.request.impl.consent.SSOConsentService;
+import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatedIdPData;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatedUser;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticationResult;
 import org.wso2.carbon.identity.application.authentication.framework.model.CommonAuthRequestWrapper;
@@ -2407,5 +2408,105 @@ public class OAuth2AuthzEndpointTest extends TestOAuthEndpointBase {
         Map<ClaimMapping, String> attributeFromCache = (Map<ClaimMapping, String>)
                 method2.invoke(defaultOIDCClaimsCallbackHandler, deviceCode);
         assertEquals(attributeFromCache.get(claimMapping), userAttributes.get(claimMapping));
+    }
+
+    @DataProvider(name = "provideAddToAuthMethodsData")
+    public Object[][] provideAddToAuthMethodsData() {
+
+        return new Object[][]{
+                {"", new String[]{"amr0"}},
+                {"amr1", new String[]{"amr0", "amr1"}},
+                {"amr1,amr2", new String[]{"amr0", "amr1", "amr2"}},
+                {"amr1-amr2", new String[]{"amr0", "amr1-amr2"}}
+        };
+    }
+
+    @Test(dataProvider = "provideAddToAuthMethodsData")
+    public void testAddToAuthMethods(String amrValueFromIDP, String[] resultantAmrArray) throws NoSuchMethodException,
+            InvocationTargetException, IllegalAccessException {
+
+        ArrayList<String> currentAmrValueArray = new ArrayList<>();
+        currentAmrValueArray.add("amr0");
+
+        Method method = authzEndpointObject.getClass().getDeclaredMethod("addToAuthMethods", String.class,
+                List.class);
+        method.setAccessible(true);
+        method.invoke(authzEndpointObject, amrValueFromIDP, currentAmrValueArray);
+
+        assertEquals(currentAmrValueArray.size(), resultantAmrArray.length);
+    }
+
+    @DataProvider(name = "provideGetAMRValuesData")
+    public Object[][] provideGetAMRValuesData() {
+
+        // authenticatedIdPData
+        AuthenticatedIdPData authenticatedIdPData = new AuthenticatedIdPData();
+        AuthenticatedUser user = new AuthenticatedUser();
+        Map<ClaimMapping, String> userAttributes = new HashMap<>();
+        userAttributes.put(
+                ClaimMapping.build("amr", null, null, false),
+                "amr1");
+        user.setUserAttributes(userAttributes);
+        authenticatedIdPData.setUser(user);
+
+        // authenticatedIdPData1
+        AuthenticatedIdPData authenticatedIdPData1 = new AuthenticatedIdPData();
+        AuthenticatedUser user1 = new AuthenticatedUser();
+        Map<ClaimMapping, String> userAttributes1 = new HashMap<>();
+        userAttributes1.put(
+                ClaimMapping.build("amr", null, null, false),
+                "amr1,amr2");
+        user1.setUserAttributes(userAttributes1);
+        authenticatedIdPData1.setUser(user1);
+
+        // authenticatedIdPData3
+        AuthenticatedIdPData authenticatedIdPData2 = new AuthenticatedIdPData();
+        AuthenticatedUser user2 = new AuthenticatedUser();
+        Map<ClaimMapping, String> userAttributes2 = new HashMap<>();
+        user2.setUserAttributes(userAttributes2);
+        authenticatedIdPData2.setUser(user2);
+
+        // authenticatedIdPs
+        Map<String, AuthenticatedIdPData> authenticatedIdPs = new HashMap<>();
+        authenticatedIdPs.put("idp", authenticatedIdPData);
+        // authenticatedIdPs1
+        Map<String, AuthenticatedIdPData> authenticatedIdPs1 = new HashMap<>();
+        authenticatedIdPs1.put("idp1", authenticatedIdPData1);
+        authenticatedIdPs1.put("idp2", authenticatedIdPData2);
+        // authenticatedIdPs2
+        Map<String, AuthenticatedIdPData> authenticatedIdPs2 = new HashMap<>();
+        authenticatedIdPs2.put("idp1", authenticatedIdPData2);
+        authenticatedIdPs2.put("idp2", authenticatedIdPData2);
+
+        return new Object[][]{
+                {"false", new HashMap<>(), new String[]{}, new String[]{}},
+                {"true", authenticatedIdPs,
+                        new String[]{"old-amr1"},
+                        new String[]{"amr1"}},
+                {"true", authenticatedIdPs1,
+                        new String[]{"old-amr1", "old-amr2"},
+                        new String[]{"old-amr1", "amr1", "amr2"}},
+                {"true", authenticatedIdPs2,
+                        new String[]{"old-amr1", "old-amr2"},
+                        new String[]{"old-amr1", "old-amr2"}}
+        };
+    }
+
+    @Test(dataProvider = "provideGetAMRValuesData")
+    public void testGetAMRValues(String readAMRValueFromIdp, Map<String, AuthenticatedIdPData> authenticatedIdPs,
+                                 String[] nativeAmrValues, String[] resultantAmrValues)
+            throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
+
+        List<String> authMethods = new ArrayList<>(Arrays.asList(nativeAmrValues));
+
+        mockStatic(IdentityUtil.class);
+        when(IdentityUtil.getProperty(OAuthConstants.READ_AMR_VALUE_FROM_IDP)).thenReturn(readAMRValueFromIdp);
+
+        Method method = authzEndpointObject.getClass().getDeclaredMethod("getAMRValues", List.class, Map.class);
+        method.setAccessible(true);
+        List<String> response = (List<String>) method.invoke(authzEndpointObject, authMethods, authenticatedIdPs);
+
+        assertEquals(response.size(), resultantAmrValues.length);
+        assertEquals(response.toArray(), resultantAmrValues);
     }
 }

@@ -174,6 +174,8 @@ public final class OAuthConstants {
 
     public static final String REQUEST_BINDING_TYPE = "request";
 
+    public static final String READ_AMR_VALUE_FROM_IDP = "OAuth.ReplaceDefaultAMRValuesWithIDPSentValues";
+
     private OAuthConstants() {
 
     }
