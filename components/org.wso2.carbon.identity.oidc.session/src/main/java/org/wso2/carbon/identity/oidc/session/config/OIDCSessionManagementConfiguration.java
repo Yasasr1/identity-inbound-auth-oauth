@@ -42,6 +42,7 @@ public class OIDCSessionManagementConfiguration {
     private String oidcLogoutConsentPageUrl = null;
     private String oidcLogoutPageUrl = null;
     private boolean handleAlreadyLoggedOutSessionsGracefully = false;
+    private boolean useClientIdLogoutParam = Boolean.FALSE;
 
     private static final String CONFIG_ELEM_OAUTH = "OAuth";
 
@@ -119,6 +120,16 @@ public class OIDCSessionManagementConfiguration {
         if (element != null) {
             handleAlreadyLoggedOutSessionsGracefully = Boolean.parseBoolean(element.getText());
         }
+
+        element = oauthConfigElement.getFirstChildWithName(getQNameWithIdentityNS(
+                OIDCSessionConstants.OIDCConfigElements.OIDC_LOGOUT_PARAMETERS));
+        if (element != null) {
+            element = element.getFirstChildWithName(getQNameWithIdentityNS(
+                    OIDCSessionConstants.OIDCConfigElements.USE_CLIENT_ID));
+            if (element != null) {
+                useClientIdLogoutParam = Boolean.parseBoolean(element.getText());
+            }
+        }
     }
 
     private QName getQNameWithIdentityNS(String localPart) {
@@ -134,5 +145,14 @@ public class OIDCSessionManagementConfiguration {
     public boolean handleAlreadyLoggedOutSessionsGracefully() {
 
         return handleAlreadyLoggedOutSessionsGracefully;
+    }
+
+    /**
+     * Returns whether the using the client id as a logout param is enabled.
+     *
+     * @return true if the config is enabled
+     */
+    public boolean useClientIdLogoutParam() {
+        return useClientIdLogoutParam;
     }
 }
