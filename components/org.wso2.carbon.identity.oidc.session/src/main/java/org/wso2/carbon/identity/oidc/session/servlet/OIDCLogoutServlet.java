@@ -334,7 +334,7 @@ public class OIDCLogoutServlet extends HttpServlet {
         String state = request
                 .getParameter(OIDCSessionConstants.OIDC_STATE_PARAM);
 
-        String appTenantDomain = null;
+        String appTenantDomain;
         try {
             if (!OIDCSessionManagementUtil.useClientIdLogoutParam()) {
                 if (OIDCSessionManagementUtil.isIDTokenEncrypted(idTokenHint)) {
