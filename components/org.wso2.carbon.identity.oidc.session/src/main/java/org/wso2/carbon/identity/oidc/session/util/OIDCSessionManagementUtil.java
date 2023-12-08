@@ -477,7 +477,7 @@ public class OIDCSessionManagementUtil {
     }
 
     /**
-     * Returns whether the using the client id as a logout param is enabled.
+     * Returns whether using the client id as a logout parameter is enabled.
      *
      * @return true if the config is enabled
      */
