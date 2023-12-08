@@ -328,7 +328,7 @@ public class OIDCLogoutServlet extends HttpServlet {
         String redirectURL = null;
         Cookie opBrowserStateCookie = OIDCSessionManagementUtil.getOPBrowserStateCookie(request);
         String idTokenHint = request.getParameter(OIDCSessionConstants.OIDC_ID_TOKEN_HINT_PARAM);
-        String clientId = request.getParameter(OIDCSessionConstants.OIDC_CLIENT_ID_PARAM);
+        String clientId;
         String postLogoutRedirectUri = request
                 .getParameter(OIDCSessionConstants.OIDC_POST_LOGOUT_REDIRECT_URI_PARAM);
         String state = request
@@ -355,15 +355,14 @@ public class OIDCLogoutServlet extends HttpServlet {
                     validateRequestTenantDomain(appTenantDomain);
                 }
             } else {
+                clientId = request.getParameter(OIDCSessionConstants.OIDC_CLIENT_ID_PARAM);
                 if (StringUtils.isBlank(clientId)) {
                     clientId = getClientIdFromIdToken(request, idTokenHint);
                 }
-            }
-
-            if (OIDCSessionManagementUtil.useClientIdLogoutParam()) {
                 appTenantDomain = OAuth2Util.getTenantDomainOfOauthApp(clientId);
                 validateRequestTenantDomain(appTenantDomain);
             }
+
             OAuthAppDO oAuthAppDO = OAuth2Util.getAppInformationByClientId(clientId);
             String spName = getServiceProviderName(clientId, appTenantDomain);
             setSPAttributeToRequest(request, spName, appTenantDomain);
@@ -863,7 +862,8 @@ public class OIDCLogoutServlet extends HttpServlet {
             IdentityOAuth2Exception {
 
         String idTokenHint = request.getParameter(OIDCSessionConstants.OIDC_ID_TOKEN_HINT_PARAM);
-        String clientId = request.getParameter(OIDCSessionConstants.OIDC_CLIENT_ID_PARAM);
+        String clientId = OIDCSessionManagementUtil.useClientIdLogoutParam() ?
+                request.getParameter(OIDCSessionConstants.OIDC_CLIENT_ID_PARAM) : StringUtils.EMPTY;
         boolean skipLogoutConsent =
                 OAuthServerConfiguration.getInstance().getOpenIDConnectSkipLogoutConsentConfig();
         if (skipLogoutConsent) {
@@ -945,9 +945,10 @@ public class OIDCLogoutServlet extends HttpServlet {
 
         String redirectURL = OIDCSessionManagementUtil.getOIDCLogoutURL();
         String idTokenHint = request.getParameter(OIDCSessionConstants.OIDC_ID_TOKEN_HINT_PARAM);
-        String clientId = request.getParameter(OIDCSessionConstants.OIDC_CLIENT_ID_PARAM);
+        String clientId;
         String postLogoutRedirectUri = request.getParameter(OIDCSessionConstants.OIDC_POST_LOGOUT_REDIRECT_URI_PARAM);
-        if ((OIDCSessionManagementUtil.useClientIdLogoutParam() && StringUtils.isBlank(clientId) &&
+        if ((OIDCSessionManagementUtil.useClientIdLogoutParam() &&
+                StringUtils.isBlank(request.getParameter(OIDCSessionConstants.OIDC_CLIENT_ID_PARAM)) &&
                 StringUtils.isBlank(idTokenHint)) || (!OIDCSessionManagementUtil.useClientIdLogoutParam() &&
                 StringUtils.isEmpty(idTokenHint)) || StringUtils.isEmpty(postLogoutRedirectUri)) {
             response.sendRedirect(getRedirectURL(redirectURL, request));
@@ -964,6 +965,7 @@ public class OIDCLogoutServlet extends HttpServlet {
                     clientId = extractClientFromIdToken(idTokenHint);
                 }
             } else {
+                clientId = request.getParameter(OIDCSessionConstants.OIDC_CLIENT_ID_PARAM);
                 if (StringUtils.isBlank(clientId)) {
                     clientId = getClientIdFromIdToken(request, idTokenHint);
                 }
