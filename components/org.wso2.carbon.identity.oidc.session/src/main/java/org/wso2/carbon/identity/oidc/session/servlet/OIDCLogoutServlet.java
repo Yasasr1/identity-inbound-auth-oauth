@@ -328,14 +328,20 @@ public class OIDCLogoutServlet extends HttpServlet {
         String redirectURL = null;
         Cookie opBrowserStateCookie = OIDCSessionManagementUtil.getOPBrowserStateCookie(request);
         String idTokenHint = request.getParameter(OIDCSessionConstants.OIDC_ID_TOKEN_HINT_PARAM);
-        String clientId;
         String postLogoutRedirectUri = request
                 .getParameter(OIDCSessionConstants.OIDC_POST_LOGOUT_REDIRECT_URI_PARAM);
         String state = request
                 .getParameter(OIDCSessionConstants.OIDC_STATE_PARAM);
 
+        String clientId;
         String appTenantDomain;
         try {
+            /**
+             * In order to use the client id as a logout param, it needs to be configured in the deployment.toml
+             * file. This is done to avoid changing the existing behaviour, which is that the client id is only
+             * extracted from the id token and if the id token is not included, the service provider cannot be
+             * identified and the logout request will not be sent to the federated IdP.
+             */
             if (!OIDCSessionManagementUtil.useClientIdLogoutParam()) {
                 if (OIDCSessionManagementUtil.isIDTokenEncrypted(idTokenHint)) {
                     appTenantDomain = request.getParameter(OIDCSessionConstants.OIDC_TENANT_DOMAIN_PARAM);

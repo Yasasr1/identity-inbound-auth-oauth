@@ -153,6 +153,7 @@ public class OIDCSessionManagementConfiguration {
      * @return true if the config is enabled
      */
     public boolean useClientIdLogoutParam() {
+
         return useClientIdLogoutParam;
     }
 }
