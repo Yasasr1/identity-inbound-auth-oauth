@@ -53,6 +53,9 @@ public class OIDCSessionConstants {
         public static final String OIDC_LOGOUT_PAGE_URL = "OIDCLogoutPage";
         public static final String HANDLE_ALREADY_LOGGED_OUT_SESSIONS_GRACEFULLY =
                 "HandleAlreadyLoggedOutSessionsGracefully";
+        public static final String OPEN_ID_CONNECT = "OpenIDConnect";
+        public static final String OIDC_LOGOUT_PARAMETERS = "OIDCLogoutParameters";
+        public static final String USE_CLIENT_ID = "UseClientID";
     }
 
     /**
