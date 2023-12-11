@@ -122,12 +122,17 @@ public class OIDCSessionManagementConfiguration {
         }
 
         element = oauthConfigElement.getFirstChildWithName(getQNameWithIdentityNS(
-                OIDCSessionConstants.OIDCConfigElements.OIDC_LOGOUT_PARAMETERS));
+                OIDCSessionConstants.OIDCConfigElements.OPEN_ID_CONNECT));
+
         if (element != null) {
             element = element.getFirstChildWithName(getQNameWithIdentityNS(
-                    OIDCSessionConstants.OIDCConfigElements.USE_CLIENT_ID));
+                    OIDCSessionConstants.OIDCConfigElements.OIDC_LOGOUT_PARAMETERS));
             if (element != null) {
-                useClientIdLogoutParam = Boolean.parseBoolean(element.getText());
+                element = element.getFirstChildWithName(getQNameWithIdentityNS(
+                        OIDCSessionConstants.OIDCConfigElements.USE_CLIENT_ID));
+                if (element != null) {
+                    useClientIdLogoutParam = Boolean.parseBoolean(element.getText());
+                }
             }
         }
     }
