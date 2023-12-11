@@ -92,6 +92,10 @@ public class PublicClientAuthenticator extends AbstractOAuthClientAuthenticator 
         if (!publicClientSupportedGrantTypes.isEmpty() && grantTypes != null) {
             for (Object grantType : grantTypes) {
                 if (!publicClientSupportedGrantTypes.contains(grantType.toString())) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("The request contained grant type : '" + grantType + "' which is not " +
+                                "allowed for public clients.");
+                    }
                     return false;
                 }
             }
