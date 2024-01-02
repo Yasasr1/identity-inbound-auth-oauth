@@ -32,6 +32,7 @@ public class Oauth2ScopeConstants {
     public static final String CONSOLE_SCOPE_PREFIX = "console:";
     public static final String INTERNAL_SCOPE_PREFIX = "internal_";
     public static final String CORRELATION_ID_MDC = "Correlation-ID";
+    public static final String INTERNAL_ROLE_PREFIX = "INTERNAL/";
 
     /**
      * Enums for error messages.
