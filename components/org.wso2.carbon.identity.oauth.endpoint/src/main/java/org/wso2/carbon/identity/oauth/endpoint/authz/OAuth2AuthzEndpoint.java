@@ -169,6 +169,7 @@ import static org.wso2.carbon.identity.application.authentication.framework.util
 import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.RequestParams.TENANT_DOMAIN;
 import static org.wso2.carbon.identity.oauth.common.OAuthConstants.OAuth20Params.CLIENT_ID;
 import static org.wso2.carbon.identity.oauth.common.OAuthConstants.OAuth20Params.REDIRECT_URI;
+import static org.wso2.carbon.identity.oauth.common.OAuthConstants.OAuth20Params.USERINFO;
 import static org.wso2.carbon.identity.oauth.endpoint.state.OAuthAuthorizeState.AUTHENTICATION_RESPONSE;
 import static org.wso2.carbon.identity.oauth.endpoint.state.OAuthAuthorizeState.INITIAL_REQUEST;
 import static org.wso2.carbon.identity.oauth.endpoint.state.OAuthAuthorizeState.PASSTHROUGH_TO_COMMONAUTH;
@@ -2836,6 +2837,13 @@ public class OAuth2AuthzEndpoint {
                     essentialRequestedClaims.add(requestedClaim.getName());
                 }
             }
+        }
+
+        // Add user info's essential claims requested using claims parameter. Claims for id_token are skipped
+        // since claims parameter does not support id_token yet.
+        if (oauth2Params.getEssentialClaims() != null) {
+            essentialRequestedClaims.addAll(OAuth2Util.getEssentialClaims(oauth2Params.getEssentialClaims(),
+                    USERINFO));
         }
 
         if (CollectionUtils.isNotEmpty(claimListOfScopes)) {
