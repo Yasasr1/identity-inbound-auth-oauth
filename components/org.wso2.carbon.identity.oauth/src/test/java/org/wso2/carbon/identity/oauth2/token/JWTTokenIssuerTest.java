@@ -350,6 +350,7 @@ public class JWTTokenIssuerTest extends PowerMockIdentityBaseTest {
             when((OAuth2Util.getPrivateKey(anyString(), anyInt()))).thenReturn(rsaPrivateKey);
             JWSSigner signer = new RSASSASigner(rsaPrivateKey);
             when(OAuth2Util.createJWSSigner(any())).thenReturn(signer);
+            when(OAuth2Util.isJWTX5tHexifyingRequired()).thenReturn(true);
             when(oAuthServerConfiguration.getSignatureAlgorithm()).thenReturn(SHA256_WITH_RSA);
 
             mockStatic(IdentityTenantUtil.class);
