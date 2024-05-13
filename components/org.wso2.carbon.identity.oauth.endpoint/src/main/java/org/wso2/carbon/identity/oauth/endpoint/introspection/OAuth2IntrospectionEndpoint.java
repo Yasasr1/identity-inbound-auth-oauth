@@ -150,11 +150,12 @@ public class OAuth2IntrospectionEndpoint {
                 .setClientId(introspectionResponse.getClientId())
                 .setIssuedAt(introspectionResponse.getIat())
                 .setExpiration(introspectionResponse.getExp())
-                .setAuthorizedUserType(introspectionResponse.getAut());
+                .setAuthorizedUserType(introspectionResponse.getAut())
+                .setAudience(introspectionResponse.getAud());
+        ;
 
         if (StringUtils.equalsIgnoreCase(introspectionResponse.getTokenType(), JWT_TOKEN_TYPE)) {
-            respBuilder.setAudience(introspectionResponse.getAud())
-                    .setJwtId(introspectionResponse.getJti())
+            respBuilder.setJwtId(introspectionResponse.getJti())
                     .setSubject(introspectionResponse.getSub())
                     .setTokenType(introspectionResponse.getTokenType())
                     .setIssuer(introspectionResponse.getIss());
