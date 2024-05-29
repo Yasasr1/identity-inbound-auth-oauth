@@ -178,7 +178,11 @@ public final class OAuthConstants {
             "OAuth.JWT.RenewTokenWithoutRevokingExisting.AllowedGrantTypes.AllowedGrantType";
     public static final String RENEW_TOKEN_WITHOUT_REVOKING_EXISTING_ENABLE_CONFIG =
             "OAuth.JWT.RenewTokenWithoutRevokingExisting.Enable";
+    public static final String OAUTH_BUILD_ISSUER_WITH_HOSTNAME = "OAuth.BuildIssuerWithHostname";
+
     public static final String REQUEST_BINDING_TYPE = "request";
+
+    public static final String READ_AMR_VALUE_FROM_IDP = "OAuth.ReplaceDefaultAMRValuesWithIDPSentValues";
 
     private OAuthConstants() {
 

@@ -184,6 +184,7 @@ import java.util.stream.Collectors;
 import javax.servlet.http.HttpServletRequest;
 import javax.xml.namespace.QName;
 
+import static org.wso2.carbon.identity.oauth.common.OAuthConstants.OAUTH_BUILD_ISSUER_WITH_HOSTNAME;
 import static org.wso2.carbon.identity.oauth.common.OAuthConstants.OAuth10AEndpoints.OAUTH_AUTHZ_EP_URL;
 import static org.wso2.carbon.identity.oauth.common.OAuthConstants.OAuth10AEndpoints.OAUTH_REQUEST_TOKEN_EP_URL;
 import static org.wso2.carbon.identity.oauth.common.OAuthConstants.OAuth10AEndpoints.OAUTH_TOKEN_EP_URL;
@@ -326,9 +327,11 @@ public class OAuth2Util {
     private static Pattern pkceCodeVerifierPattern = Pattern.compile("[\\w\\-\\._~]+");
     // System flag to allow the weak keys (key length less than 2048) to be used for the signing.
     private static final String ALLOW_WEAK_RSA_SIGNER_KEY = "allow_weak_rsa_signer_key";
+    public static final String JWT_X5T_HEXIFY_REQUIRED = "OAuth.JWTX5tHexifyingRequired";
 
     private static Map<Integer, Certificate> publicCerts = new ConcurrentHashMap<Integer, Certificate>();
     private static Map<Integer, Key> privateKeys = new ConcurrentHashMap<Integer, Key>();
+    private static boolean subjectIdentifierColumnAvailableInDeviceCodeTable = false;
 
     // Supported Signature Algorithms
     private static final String NONE = "NONE";
@@ -788,6 +791,27 @@ public class OAuth2Util {
             return null;
         }
         return DigestUtils.md5Hex(tokenBindingValue);
+    }
+
+    /**
+     * Get token binding reference string from OAuthTokenReqMessageContext.
+     * Returns NONE if token binding is not enabled or token binding reference is not available.
+     *
+     * @param tokReqMsgCtx OAuthTokenReqMessageContext.
+     * @return token binding reference.
+     */
+    public static String getTokenBindingReferenceString(OAuthTokenReqMessageContext tokReqMsgCtx) {
+
+        if (tokReqMsgCtx.getTokenBinding() == null) {
+            if (log.isDebugEnabled()) {
+                log.debug("Token binding data is null.");
+            }
+            return NONE;
+        }
+        if (StringUtils.isBlank(tokReqMsgCtx.getTokenBinding().getBindingReference())) {
+            return NONE;
+        }
+        return tokReqMsgCtx.getTokenBinding().getBindingReference();
     }
 
     public static AccessTokenDO validateAccessTokenDO(AccessTokenDO accessTokenDO) {
@@ -2882,7 +2906,12 @@ public class OAuth2Util {
             JWSSigner signer = OAuth2Util.createJWSSigner((RSAPrivateKey) privateKey);
             JWSHeader.Builder headerBuilder = new JWSHeader.Builder((JWSAlgorithm) signatureAlgorithm);
             headerBuilder.keyID(getKID(getCertificate(tenantDomain, tenantId), signatureAlgorithm, tenantDomain));
-            headerBuilder.x509CertThumbprint(new Base64URL(getThumbPrint(tenantDomain, tenantId)));
+            if (isJWTX5tHexifyingRequired()) {
+                headerBuilder.x509CertThumbprint(new Base64URL(getThumbPrint(tenantDomain, tenantId)));
+            } else {
+                Certificate certificate = getCertificate(tenantDomain, tenantId);
+                headerBuilder.x509CertThumbprint(new Base64URL(getThumbPrintWithPrevAlgorithm(certificate, false)));
+            }
             SignedJWT signedJWT = new SignedJWT(headerBuilder.build(), jwtClaimsSet);
             signedJWT.sign(signer);
             return signedJWT;
@@ -3015,25 +3044,45 @@ public class OAuth2Util {
      */
     public static String getThumbPrint(Certificate certificate) throws IdentityOAuth2Exception {
 
-        return getThumbPrintWithAlgorithm(certificate, KID_HASHING_ALGORITHM);
+        return getThumbPrintWithAlgorithm(certificate, KID_HASHING_ALGORITHM, true);
     }
 
     public static String getThumbPrintWithPrevAlgorithm(Certificate certificate)
             throws IdentityOAuth2Exception {
 
-        return getThumbPrintWithAlgorithm(certificate, PREVIOUS_KID_HASHING_ALGORITHM);
+        return getThumbPrintWithAlgorithm(certificate, PREVIOUS_KID_HASHING_ALGORITHM, true);
     }
 
-    private static String getThumbPrintWithAlgorithm(Certificate certificate, String algorithm)
+    /**
+     * Method to obtain certificate thumbprint with SHA-1 algorithm.
+     *
+     * @param certificate      java.security.cert type certificate.
+     * @param requireHexifying True, if thumbprint needs to be hexified before encoding. It should not be hexified
+     *                         if used for the x5t value.
+     * @return Certificate thumbprint as a String.
+     * @throws IdentityOAuth2Exception When failed to obtain the thumbprint.
+     */
+    public static String getThumbPrintWithPrevAlgorithm(Certificate certificate, boolean requireHexifying)
             throws IdentityOAuth2Exception {
+
+        return getThumbPrintWithAlgorithm(certificate, PREVIOUS_KID_HASHING_ALGORITHM, requireHexifying);
+    }
+
+    private static String getThumbPrintWithAlgorithm(Certificate certificate, String algorithm,
+                                                     boolean requireHexifying) throws IdentityOAuth2Exception {
+
         try {
             MessageDigest digestValue = MessageDigest.getInstance(algorithm);
             byte[] der = certificate.getEncoded();
             digestValue.update(der);
             byte[] digestInBytes = digestValue.digest();
-            String publicCertThumbprint = hexify(digestInBytes);
-            String thumbprint = new String(new Base64(0, null, true).
-                    encode(publicCertThumbprint.getBytes(Charsets.UTF_8)), Charsets.UTF_8);
+            String thumbprint;
+            if (requireHexifying) {
+                thumbprint = new String(new Base64(0, null, true).encode(
+                        hexify(digestInBytes).getBytes(Charsets.UTF_8)), Charsets.UTF_8);
+            } else {
+                thumbprint = new String(new Base64(0, null, true).encode(digestInBytes), Charsets.UTF_8);
+            }
             if (log.isDebugEnabled()) {
                 log.debug(String.format("Thumbprint value: %s calculated for Certificate: %s using algorithm: %s",
                         thumbprint, certificate, digestValue.getAlgorithm()));
@@ -3779,7 +3828,7 @@ public class OAuth2Util {
         * This method should only honor the given tenant.
         * Do not add any auto tenant resolving logic.
         */
-        if (IdentityTenantUtil.isTenantQualifiedUrlsEnabled()) {
+        if (IdentityTenantUtil.isTenantQualifiedUrlsEnabled() || isBuildIssuerWithHostname()) {
             try {
                 startTenantFlow(tenantDomain);
                 return ServiceURLBuilder.create().addPath(OAUTH2_TOKEN_EP_URL).build().getAbsolutePublicURL();
@@ -3812,6 +3861,17 @@ public class OAuth2Util {
                         IdentityApplicationConstants.Authenticator.OIDC.NAME);
         return IdentityApplicationManagementUtil.getProperty(oidcAuthenticatorConfig.getProperties(),
                 IDP_ENTITY_ID).getValue();
+    }
+
+    /**
+     * If enabled, hostname will be used to build the issuer of the ID token instead of entity id of the resident IDP.
+     *
+     * @return true if hostname is to be used to build the issuer of the ID token.
+     */
+    private static boolean isBuildIssuerWithHostname() {
+
+        String buildIssuerWithHostname = IdentityUtil.getProperty(OAUTH_BUILD_ISSUER_WITH_HOSTNAME);
+        return Boolean.parseBoolean(buildIssuerWithHostname);
     }
 
     private static IdentityProvider getResidentIdp(String tenantDomain) throws IdentityOAuth2Exception {
@@ -4635,5 +4695,43 @@ public class OAuth2Util {
         }
 
         return allowedGrantTypes;
+    }
+
+    /**
+     * Checking whether the SUBJECT_IDENTIFIER column is available in the IDN_OAUTH2_DEVICE_FLOW table.
+     *
+     * @return True if the column is available.
+     */
+    public static boolean checkSubjectIdentifierColumnAvailabilityInDeviceCodeTable() {
+
+        return FrameworkUtils.isTableColumnExists("IDN_OAUTH2_DEVICE_FLOW", "SUBJECT_IDENTIFIER");
+    }
+
+    public static void setSubjectIdentifierColumnIsAvailableInDeviceCodeTable(boolean isSubIdentifierColumnAvailable) {
+
+        OAuth2Util.subjectIdentifierColumnAvailableInDeviceCodeTable = isSubIdentifierColumnAvailable;
+    }
+
+    /**
+     * Return whether the SUBJECT_IDENTIFIER column is available in the IDN_OAUTH2_DEVICE_FLOW table.
+     *
+     * @return True if SUBJECT_IDENTIFIER is available in IDN_OAUTH2_DEVICE_FLOW table. Else return false.
+     */
+    public static boolean isSubjectIdentifierColumnAvailableInDeviceCodeTable() {
+
+        return subjectIdentifierColumnAvailableInDeviceCodeTable;
+    }
+
+    /**
+     * Get the configuration for allowing users to hexify the x5t parameter in JWT token.
+     *
+     * @return True, if it is required to hexify the x5t parameter.
+     */
+    public static boolean isJWTX5tHexifyingRequired() {
+
+        if (IdentityUtil.getProperty(JWT_X5T_HEXIFY_REQUIRED) != null) {
+            return Boolean.parseBoolean(IdentityUtil.getProperty(JWT_X5T_HEXIFY_REQUIRED));
+        }
+        return true;
     }
 }

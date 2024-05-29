@@ -46,6 +46,7 @@ import org.wso2.carbon.identity.application.authentication.framework.exception.U
 import org.wso2.carbon.identity.application.authentication.framework.handler.request.impl.consent.ClaimMetaData;
 import org.wso2.carbon.identity.application.authentication.framework.handler.request.impl.consent.ConsentClaimsData;
 import org.wso2.carbon.identity.application.authentication.framework.handler.request.impl.consent.exception.SSOConsentServiceException;
+import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatedIdPData;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatedUser;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticationResult;
 import org.wso2.carbon.identity.application.authentication.framework.model.CommonAuthRequestWrapper;
@@ -92,6 +93,11 @@ import org.wso2.carbon.identity.oauth2.IdentityOAuth2UnauthorizedScopeException;
 import org.wso2.carbon.identity.oauth2.OAuth2Service;
 import org.wso2.carbon.identity.oauth2.RequestObjectException;
 import org.wso2.carbon.identity.oauth2.authz.OAuthAuthzReqMessageContext;
+import org.wso2.carbon.identity.oauth2.device.api.DeviceAuthService;
+import org.wso2.carbon.identity.oauth2.device.cache.DeviceAuthorizationGrantCache;
+import org.wso2.carbon.identity.oauth2.device.cache.DeviceAuthorizationGrantCacheEntry;
+import org.wso2.carbon.identity.oauth2.device.cache.DeviceAuthorizationGrantCacheKey;
+import org.wso2.carbon.identity.oauth2.device.constants.Constants;
 import org.wso2.carbon.identity.oauth2.dto.OAuth2AuthorizeReqDTO;
 import org.wso2.carbon.identity.oauth2.dto.OAuth2AuthorizeRespDTO;
 import org.wso2.carbon.identity.oauth2.dto.OAuth2ClientValidationResponseDTO;
@@ -166,6 +172,7 @@ import static org.wso2.carbon.identity.application.authentication.framework.util
 import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.RequestParams.TENANT_DOMAIN;
 import static org.wso2.carbon.identity.oauth.common.OAuthConstants.OAuth20Params.CLIENT_ID;
 import static org.wso2.carbon.identity.oauth.common.OAuthConstants.OAuth20Params.REDIRECT_URI;
+import static org.wso2.carbon.identity.oauth.common.OAuthConstants.OAuth20Params.USERINFO;
 import static org.wso2.carbon.identity.oauth.endpoint.state.OAuthAuthorizeState.AUTHENTICATION_RESPONSE;
 import static org.wso2.carbon.identity.oauth.endpoint.state.OAuthAuthorizeState.INITIAL_REQUEST;
 import static org.wso2.carbon.identity.oauth.endpoint.state.OAuthAuthorizeState.PASSTHROUGH_TO_COMMONAUTH;
@@ -229,6 +236,7 @@ public class OAuth2AuthzEndpoint {
     private static final String OIDC_DIALECT = "http://wso2.org/oidc/claim";
 
     private static OpenIDConnectClaimFilterImpl openIDConnectClaimFilter;
+    private DeviceAuthService deviceAuthService;
 
     public static OpenIDConnectClaimFilterImpl getOpenIDConnectClaimFilter() {
 
@@ -238,6 +246,16 @@ public class OAuth2AuthzEndpoint {
     public static void setOpenIDConnectClaimFilter(OpenIDConnectClaimFilterImpl openIDConnectClaimFilter) {
 
         OAuth2AuthzEndpoint.openIDConnectClaimFilter = openIDConnectClaimFilter;
+    }
+
+    /**
+     * Set the device authentication service.
+     *
+     * @param deviceAuthService Device authentication service.
+     */
+    public void setDeviceAuthService(DeviceAuthService deviceAuthService) {
+
+        this.deviceAuthService = deviceAuthService;
     }
 
     private static Class<? extends OAuthAuthzRequest> oAuthAuthzRequestClass;
@@ -781,16 +799,11 @@ public class OAuth2AuthzEndpoint {
                                                        OAuth2Parameters oAuth2Parameters)
             throws SSOConsentServiceException {
 
-        List<String> claimsListOfScopes =
-                openIDConnectClaimFilter.getClaimsFilteredByOIDCScopes(oAuth2Parameters.getScopes(),
-                        oAuth2Parameters.getTenantDomain());
         if (hasPromptContainsConsent(oAuth2Parameters)) {
             // Ignore all previous consents and get consent required claims
-            return getSSOConsentService().getConsentRequiredClaimsWithoutExistingConsents(serviceProvider, user,
-                    claimsListOfScopes);
+            return getSSOConsentService().getConsentRequiredClaimsWithoutExistingConsents(serviceProvider, user);
         } else {
-            return getSSOConsentService().getConsentRequiredClaimsWithExistingConsents(serviceProvider, user,
-                    claimsListOfScopes);
+            return getSSOConsentService().getConsentRequiredClaimsWithExistingConsents(serviceProvider, user);
         }
     }
 
@@ -1551,6 +1564,9 @@ public class OAuth2AuthzEndpoint {
                 }
             }
             setAuthorizationCode(oAuthMessage, authzRespDTO, builder, tokenBindingValue, authorizationResponseDTO);
+        }
+        if (Constants.RESPONSE_TYPE_DEVICE.equalsIgnoreCase(responseType)) {
+            cacheUserAttributesByDeviceCode(oAuthMessage.getSessionDataCacheEntry());
         }
         if (isResponseTypeNotIdTokenOrNone(responseType, authzRespDTO)) {
             setAccessToken(authzRespDTO, builder, authorizationResponseDTO);
@@ -2880,8 +2896,7 @@ public class OAuth2AuthzEndpoint {
         }
 
         try {
-            ConsentClaimsData claimsForApproval = getConsentRequiredClaims(user, serviceProvider, useExistingConsents,
-                    oauth2Params);
+            ConsentClaimsData claimsForApproval = getConsentRequiredClaims(user, serviceProvider, useExistingConsents);
             if (claimsForApproval != null) {
                 String requestClaimsQueryParam = null;
                 // Get the mandatory claims and append as query param.
@@ -3035,6 +3050,13 @@ public class OAuth2AuthzEndpoint {
             }
         }
 
+        // Add user info's essential claims requested using claims parameter. Claims for id_token are skipped
+        // since claims parameter does not support id_token yet.
+        if (oauth2Params.getEssentialClaims() != null) {
+            essentialRequestedClaims.addAll(OAuth2Util.getEssentialClaims(oauth2Params.getEssentialClaims(),
+                    USERINFO));
+        }
+
         if (CollectionUtils.isNotEmpty(claimListOfScopes)) {
             // Get the external claims relevant to all oidc scope claims and essential claims.
             Set<ExternalClaim> externalClaimSetOfOidcClaims = ClaimMetadataHandler.getInstance()
@@ -3078,18 +3100,12 @@ public class OAuth2AuthzEndpoint {
 
     private ConsentClaimsData getConsentRequiredClaims(AuthenticatedUser user,
                                                        ServiceProvider serviceProvider,
-                                                       boolean useExistingConsents, OAuth2Parameters oAuth2Parameters)
-            throws SSOConsentServiceException {
+                                                       boolean useExistingConsents) throws SSOConsentServiceException {
 
-        List<String> claimsListOfScopes =
-                openIDConnectClaimFilter.getClaimsFilteredByOIDCScopes(oAuth2Parameters.getScopes(),
-                        oAuth2Parameters.getTenantDomain());
         if (useExistingConsents) {
-            return getSSOConsentService().getConsentRequiredClaimsWithExistingConsents(serviceProvider, user,
-                    claimsListOfScopes);
+            return getSSOConsentService().getConsentRequiredClaimsWithExistingConsents(serviceProvider, user);
         } else {
-            return getSSOConsentService().getConsentRequiredClaimsWithoutExistingConsents(serviceProvider, user,
-                    claimsListOfScopes);
+            return getSSOConsentService().getConsentRequiredClaimsWithoutExistingConsents(serviceProvider, user);
         }
     }
 
@@ -3685,7 +3701,64 @@ public class OAuth2AuthzEndpoint {
             for (AuthHistory authHistory : sessionContext.getSessionAuthHistory().getHistory()) {
                 authMethods.add(authHistory.toTranslatableString());
             }
+            authMethods = getAMRValues(authMethods, sessionContext.getAuthenticatedIdPs());
             resultFromLogin.getParamMap().put(OAuthConstants.AMR, authMethods.toArray(new String[authMethods.size()]));
+        }
+    }
+
+    /**
+     * Replaces the authenticator names with the AMR values sent by the IDP.
+     *
+     * @param authMethods       The list of authentication methods set by resident IDP.
+     * @param authenticatedIdPs The authenticated IDPs.
+     */
+    private List<String> getAMRValues(List<String> authMethods, Map<String, AuthenticatedIdPData> authenticatedIdPs) {
+
+        boolean readAMRValueFromIdp = Boolean.parseBoolean(IdentityUtil.getProperty(
+                OAuthConstants.READ_AMR_VALUE_FROM_IDP));
+        if (readAMRValueFromIdp) {
+            List<String> resultantAuthMethods = new ArrayList<>();
+            Object[] idpKeySet = authenticatedIdPs.keySet().toArray();
+            for (int i = 0; i < authMethods.size(); i++) {
+                boolean amrFieldExists = false;
+                if (idpKeySet[i] != null) {
+                    String idpKey = (String) idpKeySet[i];
+                    if (authenticatedIdPs.get(idpKey) != null && authenticatedIdPs.get(idpKey).getUser() != null
+                            && authenticatedIdPs.get(idpKey).getUser().getUserAttributes() != null) {
+                        for (Map.Entry<ClaimMapping, String> entry : authenticatedIdPs.get(idpKey).getUser()
+                                .getUserAttributes().entrySet()) {
+                            if (entry.getKey().getLocalClaim().getClaimUri().equals(OAuthConstants.AMR)) {
+                                amrFieldExists = true;
+                                addToAuthMethods(entry.getValue(), resultantAuthMethods);
+                                break;
+                            }
+                        }
+                    }
+                }
+                if (!amrFieldExists) {
+                    resultantAuthMethods.add(authMethods.get(i));
+                }
+            }
+            return resultantAuthMethods;
+        }
+        return authMethods;
+    }
+
+    /**
+     * Adds the authentication methods to the list.
+     *
+     * @param amrValue             Comma separated authentication method value or values.
+     * @param resultantAuthMethods The resultant list of authentication methods.
+     */
+    private void addToAuthMethods(String amrValue, List<String> resultantAuthMethods) {
+
+        if (StringUtils.isNotBlank(amrValue)) {
+            if (amrValue.contains(",")) {
+                String[] amrValues = amrValue.split(",");
+                resultantAuthMethods.addAll(Arrays.asList(amrValues));
+            } else {
+                resultantAuthMethods.add(amrValue);
+            }
         }
     }
 
@@ -3959,5 +4032,38 @@ public class OAuth2AuthzEndpoint {
     private boolean isPromptSelectAccount(OAuth2Parameters oauth2Params) {
 
         return (OAuthConstants.Prompt.SELECT_ACCOUNT).equals(oauth2Params.getPrompt());
+    }
+    private void cacheUserAttributesByDeviceCode(SessionDataCacheEntry sessionDataCacheEntry)
+            throws OAuthSystemException {
+
+        String userCode = null;
+        Optional<String> deviceCodeOptional = Optional.empty();
+        String[] userCodeArray = sessionDataCacheEntry.getParamMap().get(Constants.USER_CODE);
+        if (ArrayUtils.isNotEmpty(userCodeArray)) {
+            userCode = userCodeArray[0];
+        }
+        if (StringUtils.isNotBlank(userCode)) {
+            deviceCodeOptional = getDeviceCodeByUserCode(userCode);
+        }
+        if (deviceCodeOptional.isPresent()) {
+            addUserAttributesToCache(sessionDataCacheEntry, deviceCodeOptional.get());
+        }
+    }
+
+    private Optional<String> getDeviceCodeByUserCode(String userCode) throws OAuthSystemException {
+
+        try {
+            return deviceAuthService.getDeviceCode(userCode);
+        } catch (IdentityOAuth2Exception e) {
+            throw new OAuthSystemException("Error occurred while retrieving device code for user code: " + userCode, e);
+        }
+    }
+
+    private void addUserAttributesToCache(SessionDataCacheEntry sessionDataCacheEntry, String deviceCode) {
+
+        DeviceAuthorizationGrantCacheKey cacheKey = new DeviceAuthorizationGrantCacheKey(deviceCode);
+        DeviceAuthorizationGrantCacheEntry cacheEntry =
+                new DeviceAuthorizationGrantCacheEntry(sessionDataCacheEntry.getLoggedInUser().getUserAttributes());
+        DeviceAuthorizationGrantCache.getInstance().addToCache(cacheKey, cacheEntry);
     }
 }

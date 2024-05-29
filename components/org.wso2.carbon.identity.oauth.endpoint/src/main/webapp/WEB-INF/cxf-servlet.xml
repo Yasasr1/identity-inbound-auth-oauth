@@ -49,6 +49,7 @@
     </bean>
     <bean id="authzEndpointBean" class="org.wso2.carbon.identity.oauth.endpoint.authz.OAuth2AuthzEndpoint">
         <property name="openIDConnectClaimFilter" ref="openIDConnectClaimFilterFactoryBean"/>
+        <property name="deviceAuthService" ref="deviceAuthServiceFactoryBean"/>
     </bean>
     <bean id="tokenEndpointBean" class="org.wso2.carbon.identity.oauth.endpoint.token.OAuth2TokenEndpoint"/>
     <bean id="introspectionEndpointBean" class="org.wso2.carbon.identity.oauth.endpoint.introspection.OAuth2IntrospectionEndpoint"/>

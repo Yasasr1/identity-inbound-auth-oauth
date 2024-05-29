@@ -71,6 +71,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static java.util.Objects.nonNull;
+import static org.wso2.carbon.identity.oauth2.Oauth2ScopeConstants.INTERNAL_ROLE_PREFIX;
 import static org.wso2.carbon.identity.oauth2.Oauth2ScopeConstants.SYSTEM_SCOPE;
 import static org.wso2.carbon.identity.oauth2.util.OAuth2Util.getRolesFromFederatedUserAttributes;
 
@@ -332,9 +333,13 @@ public class JDBCPermissionBasedInternalScopeValidator {
         List<String> valuesOfGroups = getValuesOfGroupsFromUserAttributes(authenticatedUser.getUserAttributes());
         if (CollectionUtils.isNotEmpty(valuesOfGroups)) {
             for (RoleMapping roleMapping : identityProvider.getPermissionAndRoleConfig().getRoleMappings()) {
+                String internalRoleName =  INTERNAL_ROLE_PREFIX + roleMapping.getLocalRole().getLocalRoleName();
                 if (roleMapping != null && roleMapping.getLocalRole() != null) {
                     if (valuesOfGroups.contains(roleMapping.getLocalRole().getLocalRoleName())) {
                         userRolesList.add(roleMapping.getLocalRole().getLocalRoleName());
+                    } else if (StringUtils.isNotBlank(roleMapping.getLocalRole().getUserStoreId()) &&
+                            valuesOfGroups.contains(internalRoleName)) {
+                        userRolesList.add(internalRoleName);
                     }
                 }
             }

@@ -476,4 +476,13 @@ public class OIDCSessionManagementUtil {
         }
     }
 
+    /**
+     * Returns whether using the client id as a logout parameter is enabled.
+     *
+     * @return true if the config is enabled
+     */
+    public static boolean useClientIdLogoutParam() {
+
+        return OIDCSessionManagementConfiguration.getInstance().useClientIdLogoutParam();
+    }
 }
