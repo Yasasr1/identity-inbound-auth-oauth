@@ -2522,6 +2522,7 @@ public class OAuth2AuthzEndpointTest extends TestOAuthEndpointBase {
 
     private void setSupportedResponseModes() throws ClassNotFoundException, InstantiationException,
             IllegalAccessException {
+
         Map<String, ResponseModeProvider> supportedResponseModeProviders = new HashMap<>();
         ResponseModeProvider defaultResponseModeProvider;
         Map<String, String> supportedResponseModeClassNames = new HashMap<>();

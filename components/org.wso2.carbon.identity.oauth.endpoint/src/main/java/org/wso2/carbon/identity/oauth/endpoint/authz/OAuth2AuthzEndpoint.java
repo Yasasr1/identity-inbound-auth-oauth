@@ -542,7 +542,7 @@ public class OAuth2AuthzEndpoint {
      * @param authorizationResponseDTO AuthorizationResponseDTO instance.
      * @return true if response mode is form_post without errors.
      */
-    private boolean isFormPostWithoutErrors (OAuthMessage oAuthMessage,
+    private boolean isFormPostWithoutErrors(OAuthMessage oAuthMessage,
                                              AuthorizationResponseDTO authorizationResponseDTO) {
 
         return isFormPostResponseMode(oAuthMessage, authorizationResponseDTO.getRedirectUrl()) ||
@@ -942,9 +942,13 @@ public class OAuth2AuthzEndpoint {
         if (ResponseModeProvider.AuthResponseType.POST_RESPONSE.equals(responseModeProvider.getAuthResponseType())) {
             Cookie opBrowserStateCookie = OIDCSessionManagementUtil.getOPBrowserStateCookie
                     (oAuthMessage.getRequest());
-            String sessionStateParam = OIDCSessionManagementUtil.getSessionStateParam(oauth2Params.getClientId(),
-                    oauth2Params.getRedirectURI(), opBrowserStateCookie == null ? null :
-                            opBrowserStateCookie.getValue());
+            String browserStateValue = Optional.ofNullable(opBrowserStateCookie)
+                    .map(Cookie::getValue)
+                    .orElse(null);
+            String sessionStateParam = OIDCSessionManagementUtil.getSessionStateParam(
+                    oauth2Params.getClientId(),
+                    oauth2Params.getRedirectURI(),
+                    browserStateValue);
 
             authorizationResponseDTO.setSessionState(sessionStateParam);
         }
@@ -3655,11 +3659,14 @@ public class OAuth2AuthzEndpoint {
             }
         }
 
-        return OIDCSessionManagementUtil.getSessionStateParam(oAuth2Parameters.getClientId(),
+        String browserStateValue = Optional.ofNullable(opBrowserStateCookie)
+                .map(Cookie::getValue)
+                .orElse(null);
+
+        return OIDCSessionManagementUtil.getSessionStateParam(
+                oAuth2Parameters.getClientId(),
                 oAuth2Parameters.getRedirectURI(),
-                opBrowserStateCookie == null ?
-                        null :
-                        opBrowserStateCookie.getValue());
+                browserStateValue);
     }
 
     private String appendAuthenticatedIDPs(SessionDataCacheEntry sessionDataCacheEntry, String redirectURL,

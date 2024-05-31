@@ -447,6 +447,7 @@ public class OAuth2ServiceComponentHolder {
      * @return Map<String, ResponseModeProvider>
      */
     public static Map<String, ResponseModeProvider> getResponseModeProviders() {
+
         return responseModeProviders;
     }
 
@@ -457,11 +458,9 @@ public class OAuth2ServiceComponentHolder {
      */
     public static ResponseModeProvider getResponseModeProvider(String responseMode) {
 
-        if (responseMode == null) {
-            // if response mode is not provided, the DefaultResponseModeProvider is used
-            return getDefaultResponseModeProvider();
-        }
-        ResponseModeProvider responseModeProvider = responseModeProviders.get(responseMode);
+        // if response mode is not provided, the DefaultResponseModeProvider is used
+        ResponseModeProvider responseModeProvider = responseModeProviders.getOrDefault(responseMode,
+                getDefaultResponseModeProvider());
         if (responseModeProvider == null) {
             // if response mode is not in the configured response modes, the DefaultResponseModeProvider is used
             return getDefaultResponseModeProvider();
