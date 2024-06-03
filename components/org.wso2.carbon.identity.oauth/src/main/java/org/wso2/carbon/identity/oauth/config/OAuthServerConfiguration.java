@@ -2709,14 +2709,7 @@ public class OAuthServerConfiguration {
             // if this element is not present, add the default response modes.
             log.warn("'SupportedResponseModes' element not configured in identity.xml. " +
                     "Therefore instantiating default response mode providers");
-            Map<String, String> supportedResponseModeClassNamesTemp = new HashMap<>();
-            supportedResponseModeClassNamesTemp.put(OAuthConstants.ResponseModes.QUERY,
-                    QueryResponseModeProvider.class.getCanonicalName());
-            supportedResponseModeClassNamesTemp.put(OAuthConstants.ResponseModes.FRAGMENT,
-                    FragmentResponseModeProvider.class.getCanonicalName());
-            supportedResponseModeClassNamesTemp.put(OAuthConstants.ResponseModes.FORM_POST,
-                    FormPostResponseModeProvider.class.getCanonicalName());
-            supportedResponseModeProviderClassNames.putAll(supportedResponseModeClassNamesTemp);
+            parseDefaultResponseModes();
         }
 
         if (log.isDebugEnabled()) {
@@ -2726,6 +2719,18 @@ public class OAuthServerConfiguration {
                 log.debug(responseModeName + " supported by " + responseModeProviderClass);
             }
         }
+    }
+
+    private void parseDefaultResponseModes() {
+
+        Map<String, String> supportedResponseModeClassNamesTemp = new HashMap<>();
+        supportedResponseModeClassNamesTemp.put(OAuthConstants.ResponseModes.QUERY,
+                QueryResponseModeProvider.class.getCanonicalName());
+        supportedResponseModeClassNamesTemp.put(OAuthConstants.ResponseModes.FRAGMENT,
+                FragmentResponseModeProvider.class.getCanonicalName());
+        supportedResponseModeClassNamesTemp.put(OAuthConstants.ResponseModes.FORM_POST,
+                FormPostResponseModeProvider.class.getCanonicalName());
+        supportedResponseModeProviderClassNames.putAll(supportedResponseModeClassNamesTemp);
     }
 
     private void parseSupportedClientAuthHandlersConfig(OMElement clientAuthElement) {
