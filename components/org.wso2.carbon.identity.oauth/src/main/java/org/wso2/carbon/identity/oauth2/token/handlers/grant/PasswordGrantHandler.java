@@ -87,8 +87,8 @@ public class PasswordGrantHandler extends AbstractAuthorizationGrantHandler {
     private static final String IS_INITIAL_LOGIN = "isInitialLogin";
     private static final String PASSWORD_GRANT_AUTHENTICATOR_NAME = "BASIC";
     private static final String PUBLISH_PASSWORD_GRANT_LOGIN = "OAuth.PublishPasswordGrantLogin";
-    private static final String USE_SHOW_AUTH_FAILURE_REASON_IN_PASSWORD_GRANT =
-            "OAuth.UseShowAuthFailureReasonInPasswordGrant";
+    private static final String PASSWORD_GRANT_SHOW_AUTH_FAILURE_REASON =
+            "OAuth.PasswordGrant.UseShowAuthFailureReason";
     private static final String REMOTE_IP_ADDRESS = "remote-ip-address";
     private static final String PASSWORD_GRANT_POST_AUTHENTICATION_EVENT = "PASSWORD_GRANT_POST_AUTHENTICATION";
 
@@ -192,7 +192,7 @@ public class PasswordGrantHandler extends AbstractAuthorizationGrantHandler {
         boolean isShowAuthFailureReason = Boolean.parseBoolean(
                 getBasicAuthenticatorConfigs().getParameterMap().get(SHOW_AUTHFAILURE_RESON_CONFIG));
         boolean useShowAuthFailureReasonConfig = Boolean.parseBoolean(
-                IdentityUtil.getProperty(USE_SHOW_AUTH_FAILURE_REASON_IN_PASSWORD_GRANT));
+                IdentityUtil.getProperty(PASSWORD_GRANT_SHOW_AUTH_FAILURE_REASON));
         isShowAuthFailureReason = isShowAuthFailureReason || !useShowAuthFailureReasonConfig;
         String genericErrorMessage = "Authentication failed for " + tokenReq.getResourceOwnerUsername();
         try {
