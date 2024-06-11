@@ -194,7 +194,7 @@ public class PasswordGrantHandler extends AbstractAuthorizationGrantHandler {
         boolean useShowAuthFailureReasonConfig = Boolean.parseBoolean(
                 IdentityUtil.getProperty(PASSWORD_GRANT_SHOW_AUTH_FAILURE_REASON));
         isShowAuthFailureReason = isShowAuthFailureReason || !useShowAuthFailureReasonConfig;
-        String genericErrorMessage = "Authentication failed for " + tokenReq.getResourceOwnerUsername();
+        String genericErrorUserName = tokenReq.getResourceOwnerUsername();
         try {
             // Get the user store preference order supplier.
             UserStorePreferenceOrderSupplier<List<String>> userStorePreferenceOrderSupplier =
@@ -224,6 +224,11 @@ public class PasswordGrantHandler extends AbstractAuthorizationGrantHandler {
                 tenantAwareUserName = resolvedUserResult.getUser().getUsername();
                 userId = resolvedUserResult.getUser().getUserID();
                 tokenReq.setResourceOwnerUsername(tenantAwareUserName + "@" + userTenantDomain);
+            }
+
+            if (MultitenantConstants.SUPER_TENANT_DOMAIN_NAME.equalsIgnoreCase(MultitenantUtils.getTenantDomain
+                    (tokenReq.getResourceOwnerUsername())) || IdentityTenantUtil.isTenantQualifiedUrlsEnabled()) {
+                genericErrorUserName = tenantAwareUserName;
             }
 
             AbstractUserStoreManager userStoreManager = getUserStoreManager(userTenantDomain);
@@ -281,7 +286,7 @@ public class PasswordGrantHandler extends AbstractAuthorizationGrantHandler {
             if (StringUtils.isNotBlank(e.getErrorCode())) {
                 message = e.getErrorCode() + " " + e.getMessage();
             }
-            message = isShowAuthFailureReason ? message : genericErrorMessage;
+            message = isShowAuthFailureReason ? message : "Authentication failed for " + genericErrorUserName;
             throw new IdentityOAuth2Exception(message, e);
         } catch (UserStoreException e) {
             if (isPublishPasswordGrantLoginEnabled) {
@@ -305,7 +310,7 @@ public class PasswordGrantHandler extends AbstractAuthorizationGrantHandler {
                     message = identityException.getErrorCode() + " " + e.getMessage();
                 }
             }
-            message = isShowAuthFailureReason ? message : genericErrorMessage;
+            message = isShowAuthFailureReason ? message : "Authentication failed for " + genericErrorUserName;
             throw new IdentityOAuth2Exception(message, e);
         } catch (AuthenticationFailedException e) {
             String message = "Authentication failed for the user: " + tokenReq.getResourceOwnerUsername();
