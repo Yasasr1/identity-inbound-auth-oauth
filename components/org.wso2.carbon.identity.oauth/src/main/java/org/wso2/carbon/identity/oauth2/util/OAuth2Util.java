@@ -313,6 +313,7 @@ public class OAuth2Util {
      * FIdp Role Based authentication application config.
      */
     public static final String FIDP_ROLE_BASED_AUTHZ_APP_CONFIG = "FIdPRoleBasedAuthzApplications.AppName";
+    public static final String TOKEN_BINDING_REF_REVOKE_SSO_TOKENS = "OAuth.TokenBindingReference.RevokeAllSSOTokens";
 
     private static final String INBOUND_AUTH2_TYPE = "oauth2";
     private static final Log log = LogFactory.getLog(OAuth2Util.class);
@@ -4672,6 +4673,15 @@ public class OAuth2Util {
         return isFederatedRoleBasedAuthzEnabled;
     }
 
+    /**
+     * Get the config to determine if all tokens of an SSO session should be revoked when the session is revoked.
+     *
+     * @return True if all tokens of an SSO session should be revoked when the session is revoked.
+     */
+    public static boolean isRevokeAllTokensOfTokenOfSSOSession() {
+
+        return Boolean.parseBoolean(IdentityUtil.getProperty(TOKEN_BINDING_REF_REVOKE_SSO_TOKENS));
+    }
 
     /**
      * Get allowed grant type list for renewing token without revoking existing token.
