@@ -202,13 +202,13 @@ public class TokenBindingExpiryEventHandler extends AbstractEventHandler {
                                             String bindingType) throws IdentityOAuth2Exception,
             InvalidOAuthClientException, OAuthSystemException {
 
-        revokeTokensOfBindingRef(user, getBindingRefFromType(request, consumerKey, bindingType));
+        revokeTokensOfBindingRef(user, getBindingRefFromType(request, consumerKey, bindingType), bindingType);
     }
 
     private void revokeTokensForCommonAuthCookie(HttpServletRequest request, AuthenticatedUser user) throws
             IdentityOAuth2Exception, InvalidOAuthClientException {
 
-        revokeTokensOfBindingRef(user, getBindingRefFromCommonAuthCookie(request));
+        revokeTokensOfBindingRef(user, getBindingRefFromCommonAuthCookie(request), null);
     }
 
     /**
@@ -275,11 +275,12 @@ public class TokenBindingExpiryEventHandler extends AbstractEventHandler {
      *
      * @param user                  authenticated user
      * @param tokenBindingReference token binding reference
+     * @param tokenBindingType      token binding type for the current binding reference
      * @throws IdentityOAuth2Exception     if an exception occurs while revoking tokens
      * @throws InvalidOAuthClientException if an exception occurs while revoking tokens
      */
-    private void revokeTokensOfBindingRef(AuthenticatedUser user, String tokenBindingReference) throws
-            IdentityOAuth2Exception, InvalidOAuthClientException {
+    private void revokeTokensOfBindingRef(AuthenticatedUser user, String tokenBindingReference, String tokenBindingType)
+            throws IdentityOAuth2Exception, InvalidOAuthClientException {
 
         if (StringUtils.isBlank(tokenBindingReference) || user == null) {
             return;
@@ -315,7 +316,8 @@ public class TokenBindingExpiryEventHandler extends AbstractEventHandler {
                                     user.getFederatedIdPName(), authenticatedUser.getFederatedIdPName())
                             && StringUtils.equalsIgnoreCase(user.getUserName(), authenticatedUser.getUserName())) {
                         revokeFederatedTokens(consumerKey, user, accessTokenDO, tokenBindingReference);
-                    } else if (StringUtils.equalsIgnoreCase(userId, authenticatedUser.getUserId())) {
+                    } else if (StringUtils.equalsIgnoreCase(userId, authenticatedUser.getUserId()) ||
+                            isRevokeAllTokensForTokenBindingType(tokenBindingType)) {
                         revokeTokens(consumerKey, accessTokenDO, tokenBindingReference);
                     }
                 } catch (UserIdNotFoundException e) {
@@ -325,6 +327,19 @@ public class TokenBindingExpiryEventHandler extends AbstractEventHandler {
                 }
             }
         }
+    }
+
+    /**
+     * Check whether to revoke all tokens for the given token binding type. We can revoke all tokens of
+     * SSO session based token binding type if the relevant configuration is enabled.
+     *
+     * @param tokenBindingType Token binding type
+     * @return true if all tokens should be revoked for the given token binding type
+     */
+    private boolean isRevokeAllTokensForTokenBindingType(String tokenBindingType) {
+
+        return OAuth2Constants.TokenBinderType.SSO_SESSION_BASED_TOKEN_BINDER.equals(tokenBindingType) &&
+                OAuth2Util.isRevokeAllTokensOfTokenOfSSOSession();
     }
 
     /**
