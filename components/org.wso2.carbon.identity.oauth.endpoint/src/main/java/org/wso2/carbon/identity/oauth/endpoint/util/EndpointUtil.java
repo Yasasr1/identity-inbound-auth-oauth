@@ -152,6 +152,7 @@ public class EndpointUtil {
     private static CibaAuthServiceImpl cibaAuthService;
     private static IdpManager idpManager;
     private static final String ALLOW_ADDITIONAL_PARAMS_FROM_ERROR_URL = "OAuth.AllowAdditionalParamsFromErrorUrl";
+    private static final String KEEP_OIDC_SCOPES_IN_CONSENT_URL = "OAuth.KeepOIDCScopesInConsentURL";
     private static final String IDP_ENTITY_ID = "IdPEntityId";
 
     public static void setIdpManager(IdpManager idpManager) {
@@ -757,7 +758,7 @@ public class EndpointUtil {
                     queryString = queryString +
                             "&" + PROP_REDIRECT_URI + "=" + URLEncoder.encode(params.getRedirectURI(), UTF_8);
                 }
-                if (params != null) {
+                if (params != null && isKeepOIDCScopesInConsentURL()) {
                     queryString = queryString + "&" + PROP_OIDC_SCOPE +
                             "=" + URLEncoder.encode(StringUtils.join(getRequestedOIDCScopes(params), " "), UTF_8);
                 }
@@ -837,7 +838,9 @@ public class EndpointUtil {
                     oAuth2Parameters.getClientId());
         }
         // Remove OIDC scopes.
-        scopesToBeConsented.removeAll(getOIDCScopeNames());
+        if (!isKeepOIDCScopesInConsentURL()) {
+            scopesToBeConsented.removeAll(getOIDCScopeNames());
+        }
         String userId = getUserIdOfAuthenticatedUser(user);
         String appId = getAppIdFromClientId(oAuth2Parameters.getClientId());
         return oAuth2ScopeService.hasUserProvidedConsentForAllRequestedScopes(userId, appId,
@@ -928,6 +931,16 @@ public class EndpointUtil {
     }
 
     /**
+     * Check whether the OIDC scopes should be returned as query parameters with the consent URL.
+     *
+     * @return True if OIDC scopes should be returned as query parameters with the consent URL.
+     */
+    private static boolean isKeepOIDCScopesInConsentURL() {
+
+        return Boolean.parseBoolean(IdentityUtil.getProperty(KEEP_OIDC_SCOPES_IN_CONSENT_URL));
+    }
+
+    /**
      * Return a list of consent requested OIDC scopes
      *
      * @param params OAuth2 parameters.
@@ -954,13 +967,13 @@ public class EndpointUtil {
     }
 
     /**
-     * Drop unregistered scopes from consent required scopes.
+     * Drop OIDC and unregistered scopes from consent required scopes.
      *
      * @param params OAuth2 parameters.
      * @return consent required scopes
      * @throws OAuthSystemException If dropping unregistered scopes failed.
      */
-    private static List<String> dropUnregisteredScopesFromConsentRequiredScopes(OAuth2Parameters params)
+    private static List<String> dropOIDCAndUnregisteredScopesFromConsentRequiredScopes(OAuth2Parameters params)
             throws OAuthSystemException {
 
         Set<String> allowedScopes = params.getScopes();
@@ -978,9 +991,20 @@ public class EndpointUtil {
                     }
                     allowedScopes = dropUnregisteredScopes(params);
                 }
-                allowedRegisteredScopes.addAll(allowedScopes);
-            } catch (OAuthSystemException e) {
-                throw new OAuthSystemException("Error while dropping unregistered scopes.", e);
+                if (isKeepOIDCScopesInConsentURL()) {
+                    allowedRegisteredScopes.addAll(allowedScopes);
+                } else {
+                    // Get registered OIDC scopes.
+                    String[] oidcScopes = oAuthAdminService.getScopeNames();
+                    List<String> oidcScopeList = new ArrayList<>(Arrays.asList(oidcScopes));
+                    for (String scope : allowedScopes) {
+                        if (!oidcScopeList.contains(scope)) {
+                            allowedRegisteredScopes.add(scope);
+                        }
+                    }
+                }
+            } catch (IdentityOAuthAdminException e) {
+                throw new OAuthSystemException("Error while retrieving OIDC scopes.", e);
             } finally {
                 PrivilegedCarbonContext.endTenantFlow();
             }
@@ -997,7 +1021,7 @@ public class EndpointUtil {
 
         try {
             //Filter out unregistered scopes to prevent those scopes prompt for consent in the consent page.
-            List<String> consentRequiredScopes = dropUnregisteredScopesFromConsentRequiredScopes(params);
+            List<String> consentRequiredScopes = dropOIDCAndUnregisteredScopesFromConsentRequiredScopes(params);
 
             if (user != null && !isPromptContainsConsent(params)) {
                 String userId = getUserIdOfAuthenticatedUser(user);
