@@ -951,15 +951,14 @@ public class EndpointUtil {
             throws OAuthSystemException {
 
         Set<String> allowedScopes = params.getScopes();
-        List<String> requestedOIDCScopes = new ArrayList<>();
+        List<String> requestedOIDCScopes;
         try {
             // Get registered OIDC scopes.
             List<String> oidcScopeList = oAuthAdminService.getRegisteredOIDCScope(params.getTenantDomain());
-            for (String scope : allowedScopes) {
-                if (oidcScopeList.contains(scope)) {
-                    requestedOIDCScopes.add(scope.toLowerCase());
-                }
-            }
+            requestedOIDCScopes = allowedScopes.stream()
+                    .filter(oidcScopeList::contains)
+                    .map(String::toLowerCase)
+                    .collect(Collectors.toList());
         } catch (IdentityOAuthAdminException e) {
             throw new OAuthSystemException("Error while retrieving OIDC scopes.", e);
         }
