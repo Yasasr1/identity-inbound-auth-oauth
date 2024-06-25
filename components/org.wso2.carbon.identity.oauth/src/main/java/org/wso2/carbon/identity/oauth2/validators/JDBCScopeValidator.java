@@ -94,6 +94,8 @@ public class JDBCScopeValidator extends OAuth2ScopeValidator {
     private static final String OPENID = "openid";
     private static final String ATTRIBUTE_SEPARATOR = FrameworkUtils.getMultiAttributeSeparator();
     private static final String PRESERVE_CASE_SENSITIVITY = "preservedCaseSensitive";
+    private static final String SCOPE_VALIDATOR_PRESERVE_CASE_SENSITIVITY =
+            "OAuth.ScopeValidationPreserveCaseSensitivity";
 
     private static final Log log = LogFactory.getLog(JDBCScopeValidator.class);
 
@@ -408,10 +410,11 @@ public class JDBCScopeValidator extends OAuth2ScopeValidator {
             return false;
         }
         boolean preservedCaseSensitive = Boolean.parseBoolean(System.getProperty(PRESERVE_CASE_SENSITIVITY));
-
+        boolean scopeValidatorPreserveCaseSensitivity = Boolean.parseBoolean(IdentityUtil.getProperty(
+                SCOPE_VALIDATOR_PRESERVE_CASE_SENSITIVITY));
         //Check if the user still has a valid role for this scope.
         Set<String> scopeRoles = new HashSet<>(rolesOfScope);
-        if (preservedCaseSensitive) {
+        if (preservedCaseSensitive || scopeValidatorPreserveCaseSensitivity) {
             rolesOfScope.retainAll(Arrays.asList(userRoles));
         } else {
             Set<String> rolesOfScopeLowerCase = new HashSet<>();
