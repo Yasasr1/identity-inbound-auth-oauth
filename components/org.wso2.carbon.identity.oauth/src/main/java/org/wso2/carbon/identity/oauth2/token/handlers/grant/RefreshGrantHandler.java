@@ -19,6 +19,7 @@
 package org.wso2.carbon.identity.oauth2.token.handlers.grant;
 
 import org.apache.commons.codec.digest.DigestUtils;
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
@@ -64,6 +65,7 @@ import java.util.stream.Stream;
 
 import static org.wso2.carbon.identity.oauth.common.OAuthConstants.GrantTypes.REFRESH_TOKEN;
 import static org.wso2.carbon.identity.oauth.common.OAuthConstants.TokenBindings.NONE;
+import static org.wso2.carbon.identity.oauth2.Oauth2ScopeConstants.REQUESTED_ALLOWED_SCOPES;
 import static org.wso2.carbon.identity.oauth2.util.OAuth2Util.buildCacheKeyStringForTokenWithUserId;
 
 /**
@@ -166,13 +168,16 @@ public class RefreshGrantHandler extends AbstractAuthorizationGrantHandler {
         String[] requestedScopes = tokReqMsgCtx.getOauth2AccessTokenReqDTO().getScope();
         String[] grantedScopes = tokReqMsgCtx.getScope();
         String[] grantedInternalScopes = tokReqMsgCtx.getAuthorizedInternalScopes();
+        List<String> requestedAllowedScopes = (List<String>) tokReqMsgCtx.getProperty(REQUESTED_ALLOWED_SCOPES);
         if (ArrayUtils.isNotEmpty(requestedScopes)) {
-            if (ArrayUtils.isEmpty(grantedScopes) && ArrayUtils.isEmpty(grantedInternalScopes)) {
+            if (ArrayUtils.isEmpty(grantedScopes) && ArrayUtils.isEmpty(grantedInternalScopes) &&
+                    CollectionUtils.isEmpty(requestedAllowedScopes)) {
                 return false;
             }
             List<String> grantedScopeList = Stream
                     .concat(Arrays.stream(grantedScopes), Arrays.stream(grantedInternalScopes))
                     .collect(Collectors.toList());
+            grantedScopeList.addAll(requestedAllowedScopes);
             for (String scope : requestedScopes) {
                 if (!grantedScopeList.contains(scope)) {
                     if (log.isDebugEnabled()) {
