@@ -90,6 +90,7 @@ import static org.wso2.carbon.identity.oauth.common.OAuthConstants.GrantTypes.RE
 import static org.wso2.carbon.identity.oauth.common.OAuthConstants.OauthAppStates.APP_STATE_ACTIVE;
 import static org.wso2.carbon.identity.oauth2.Oauth2ScopeConstants.CONSOLE_SCOPE_PREFIX;
 import static org.wso2.carbon.identity.oauth2.Oauth2ScopeConstants.INTERNAL_SCOPE_PREFIX;
+import static org.wso2.carbon.identity.oauth2.Oauth2ScopeConstants.REQUESTED_ALLOWED_SCOPES;
 import static org.wso2.carbon.identity.oauth2.Oauth2ScopeConstants.SYSTEM_SCOPE;
 import static org.wso2.carbon.identity.oauth2.util.OAuth2Util.validateRequestTenantDomain;
 
@@ -550,6 +551,7 @@ public class AccessTokenIssuer {
             }
             tokReqMsgCtx.setScope(scopesToBeValidated.toArray(new String[0]));
         }
+        tokReqMsgCtx.addProperty(REQUESTED_ALLOWED_SCOPES, requestedAllowedScopes);
 
         String[] authorizedInternalScopes = new String[0];
         boolean isManagementApp = getServiceProvider(tokenReqDTO).isManagementApp();
@@ -600,7 +602,10 @@ public class AccessTokenIssuer {
         if (isValidScope) {
             // Add authorized internal scopes to the request for sending in the response.
             addAuthorizedInternalScopes(tokReqMsgCtx, tokReqMsgCtx.getAuthorizedInternalScopes());
-            addAllowedScopes(tokReqMsgCtx, requestedAllowedScopes.toArray(new String[0]));
+            if (!REFRESH_TOKEN.equals(grantType) ||
+                    ArrayUtils.isEmpty(tokReqMsgCtx.getOauth2AccessTokenReqDTO().getScope())) {
+                addAllowedScopes(tokReqMsgCtx, requestedAllowedScopes.toArray(new String[0]));
+            }
             if (LoggerUtils.isDiagnosticLogsEnabled()) {
                 Map<String, Object> params = new HashMap<>();
                 params.put("clientId", tokenReqDTO.getClientId());
