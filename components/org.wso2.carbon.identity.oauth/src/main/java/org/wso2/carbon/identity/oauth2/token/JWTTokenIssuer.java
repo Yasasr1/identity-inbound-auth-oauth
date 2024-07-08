@@ -145,8 +145,12 @@ public class JWTTokenIssuer extends OauthTokenIssuerImpl {
     public String getAccessTokenHash(String accessToken) throws OAuthSystemException {
         try {
             JWT parsedJwtToken = JWTParser.parse(accessToken);
+            // JWT ClaimsSet can be null if the ID token is encrypted.
+            if (parsedJwtToken.getJWTClaimsSet() == null) {
+                throw new OAuthSystemException("JWT claims set is null in the JWT token.");
+            }
             String jwtId = parsedJwtToken.getJWTClaimsSet().getJWTID();
-            if (jwtId == null) {
+            if (StringUtils.isBlank(jwtId)) {
                 throw new OAuthSystemException("JTI could not be retrieved from the JWT token.");
             }
             return jwtId;
