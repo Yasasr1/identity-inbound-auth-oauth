@@ -31,6 +31,7 @@ import org.apache.oltu.oauth2.common.message.OAuthResponse;
 import org.apache.oltu.oauth2.common.message.types.GrantType;
 import org.wso2.carbon.context.PrivilegedCarbonContext;
 import org.wso2.carbon.identity.central.log.mgt.utils.LoggerUtils;
+import org.wso2.carbon.identity.core.util.IdentityUtil;
 import org.wso2.carbon.identity.oauth.client.authn.filter.OAuthClientAuthenticatorProxy;
 import org.wso2.carbon.identity.oauth.common.OAuth2ErrorCodes;
 import org.wso2.carbon.identity.oauth.common.OAuthConstants;
@@ -47,9 +48,12 @@ import org.wso2.carbon.identity.oauth2.model.CarbonOAuthTokenRequest;
 import org.wso2.carbon.identity.oauth2.token.handlers.response.OAuth2TokenResponse;
 import org.wso2.carbon.user.core.util.UserCoreUtil;
 
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletRequestWrapper;
@@ -64,6 +68,9 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.ResponseBuilder;
 
 import static org.apache.commons.lang.StringUtils.isNotBlank;
+import static org.wso2.carbon.identity.oauth.common.OAuthConstants.OAuth20Params.CLIENT_SECRET;
+import static org.wso2.carbon.identity.oauth.common.OAuthConstants.OAuth20Params.PASSWORD;
+import static org.wso2.carbon.identity.oauth.common.OAuthConstants.OAuth20Params.USERNAME;
 import static org.wso2.carbon.identity.oauth.endpoint.util.EndpointUtil.parseJsonTokenRequest;
 import static org.wso2.carbon.identity.oauth.endpoint.util.EndpointUtil.startSuperTenantFlow;
 import static org.wso2.carbon.identity.oauth.endpoint.util.EndpointUtil.triggerOnTokenExceptionListeners;
@@ -136,6 +143,9 @@ public class OAuth2TokenEndpoint {
         try {
             startSuperTenantFlow();
             validateRepeatedParams(request, paramMap);
+            if (!IdentityUtil.shouldAllowSensitiveDataInURL()) {
+                validateSensitiveDataInQueryParams(request);
+            }
             HttpServletRequestWrapper httpRequest = new OAuthRequestWrapper(request, paramMap);
 
             CarbonOAuthTokenRequest oauthRequest = buildCarbonOAuthTokenRequest(httpRequest);
@@ -366,5 +376,20 @@ public class OAuth2TokenEndpoint {
         }
         tokenReqDTO.addAuthenticationMethodReference(grantType);
         return tokenReqDTO;
+    }
+
+    private void validateSensitiveDataInQueryParams(HttpServletRequest request)
+            throws TokenEndpointBadRequestException {
+
+        String queryString = request.getQueryString();
+        if (StringUtils.isNotBlank(queryString)) {
+            Set<String> sensitiveKeys = new HashSet<>(Arrays.asList(USERNAME, PASSWORD, CLIENT_SECRET));
+            boolean containsSensitiveData = Arrays.stream(queryString.split("&"))
+                    .map(param -> param.split("=")[0])
+                    .anyMatch(sensitiveKeys::contains);
+            if (containsSensitiveData) {
+                throw new TokenEndpointBadRequestException("Invalid request with sensitive data in the URL.");
+            }
+        }
     }
 }
