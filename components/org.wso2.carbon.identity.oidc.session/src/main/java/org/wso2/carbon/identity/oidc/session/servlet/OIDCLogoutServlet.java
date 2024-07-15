@@ -350,9 +350,7 @@ public class OIDCLogoutServlet extends HttpServlet {
                 } else {
                     if (!validateIdToken(idTokenHint)) {
                         String msg = "ID token signature validation failed.";
-                        if (log.isDebugEnabled()) {
-                            log.debug(msg);
-                        }
+                        log.debug(msg);
                         redirectURL = getErrorPageURL(OAuth2ErrorCodes.ACCESS_DENIED, msg);
                         return redirectURL;
                     }
@@ -881,20 +879,21 @@ public class OIDCLogoutServlet extends HttpServlet {
         }
 
         if (StringUtils.isNotBlank(idTokenHint)) {
-            if (!OIDCSessionManagementUtil.useClientIdLogoutParam()) {
+            if (!OIDCSessionManagementUtil.useClientIdLogoutParam() || StringUtils.isBlank(clientId)) {
                 if (OIDCSessionManagementUtil.isIDTokenEncrypted(idTokenHint)) {
                     String tenantDomain = request.getParameter(OIDCSessionConstants.OIDC_TENANT_DOMAIN_PARAM);
                     JWT decryptedIDToken = OIDCSessionManagementUtil.decryptWithRSA(tenantDomain, idTokenHint);
                     clientId = OIDCSessionManagementUtil.extractClientIDFromDecryptedIDToken(decryptedIDToken);
                 } else {
                     if (!validateIdToken(idTokenHint)) {
-                        throw new IdentityOAuth2Exception("ID token signature validation failed.");
+                        if (!OIDCSessionManagementUtil.useClientIdLogoutParam()) {
+                            throw new IdentityOAuth2Exception("ID token signature validation failed.");
+                        } else {
+                            throw new IdentityOAuth2Exception(OAuth2ErrorCodes.OAuth2SubErrorCodes.INVALID_ID_TOKEN,
+                                    "ID token signature validation failed.");
+                        }
                     }
                     clientId = extractClientFromIdToken(idTokenHint);
-                }
-            } else {
-                if (StringUtils.isBlank(clientId)) {
-                    clientId = getClientIdFromIdToken(request, idTokenHint);
                 }
             }
         }
