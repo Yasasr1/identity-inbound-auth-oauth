@@ -40,6 +40,7 @@ import org.wso2.carbon.context.PrivilegedCarbonContext;
 import org.wso2.carbon.identity.central.log.mgt.utils.LoggerUtils;
 import org.wso2.carbon.identity.core.util.IdentityDatabaseUtil;
 import org.wso2.carbon.identity.core.util.IdentityTenantUtil;
+import org.wso2.carbon.identity.core.util.IdentityUtil;
 import org.wso2.carbon.identity.oauth.common.NTLMAuthenticationValidator;
 import org.wso2.carbon.identity.oauth.common.OAuth2ErrorCodes;
 import org.wso2.carbon.identity.oauth.common.OAuthConstants;
@@ -86,7 +87,7 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 
 @PrepareForTest({EndpointUtil.class, IdentityDatabaseUtil.class, OAuthServerConfiguration.class,
-        CarbonOAuthTokenRequest.class, LoggerUtils.class, IdentityTenantUtil.class})
+        CarbonOAuthTokenRequest.class, LoggerUtils.class, IdentityTenantUtil.class, IdentityUtil.class})
 public class OAuth2TokenEndpointTest extends TestOAuthEndpointBase {
 
     @Mock
@@ -180,60 +181,65 @@ public class OAuth2TokenEndpointTest extends TestOAuthEndpointBase {
         return new Object[][]{
                 // Request with multivalued client_id parameter. Will return bad request error
                 {CLIENT_ID_VALUE + ",clientId2", null, new MultivaluedHashMap<String, String>(), GrantType.PASSWORD
-                        .toString(), null, null, null, null, HttpServletResponse.SC_BAD_REQUEST, OAuth2ErrorCodes
+                        .toString(), null, null, null, null, false, HttpServletResponse.SC_BAD_REQUEST, OAuth2ErrorCodes
                         .INVALID_REQUEST},
 
                 // Request with invalid authorization header. Will return bad request error
                 {CLIENT_ID_VALUE, inCorrectAuthzHeader, mapWithClientId, GrantType.PASSWORD.toString(), null, null,
-                        null, null, HttpServletResponse.SC_BAD_REQUEST, OAuth2ErrorCodes.INVALID_REQUEST},
+                        null, null, false, HttpServletResponse.SC_BAD_REQUEST, OAuth2ErrorCodes.INVALID_REQUEST},
 
                 // Request from inactive client. Will give correct response, inactive client state should be handled
                 // in access token issuer
                 {INACTIVE_CLIENT_ID_VALUE, inactiveClientHeader, new MultivaluedHashMap<String, String>(), GrantType
-                        .PASSWORD.toString(), null, null, null, null, HttpServletResponse.SC_OK, ""},
+                        .PASSWORD.toString(), null, null, null, null, false, HttpServletResponse.SC_OK, ""},
 
                 // Request from invalid client. Will give correct response, invalid-id is handles in access token issuer
                 {"invalidId", invalidClientHeader, new MultivaluedHashMap<String, String>(), GrantType.PASSWORD
-                        .toString(), null, null, null, null, HttpServletResponse.SC_OK, ""},
+                        .toString(), null, null, null, null, false, HttpServletResponse.SC_OK, ""},
 
                 // Request without client id and authz header. Will give bad request error
                 {null, null, new MultivaluedHashMap<String, String>(), GrantType.PASSWORD.toString(), null, null,
-                        null, null, HttpServletResponse.SC_BAD_REQUEST, OAuth2ErrorCodes.INVALID_REQUEST},
+                        null, null, false, HttpServletResponse.SC_BAD_REQUEST, OAuth2ErrorCodes.INVALID_REQUEST},
 
                 // Request with client id but no authz header. Will give bad request error
                 {CLIENT_ID_VALUE, null, new MultivaluedHashMap<String, String>(), GrantType.PASSWORD.toString(),
-                        null, null, null, null, HttpServletResponse.SC_BAD_REQUEST, null},
+                        null, null, null, null, false, HttpServletResponse.SC_BAD_REQUEST, null},
 
                 // Request with unsupported grant type. Will give bad request error
                 {CLIENT_ID_VALUE, AUTHORIZATION_HEADER, new MultivaluedHashMap<String, String>(), "dummyGrant", null,
-                        null, null, null, HttpServletResponse.SC_BAD_REQUEST, null},
+                        null, null, null, false, HttpServletResponse.SC_BAD_REQUEST, null},
 
                 // Successful request without id token request. No headers
                 {CLIENT_ID_VALUE, AUTHORIZATION_HEADER, new MultivaluedHashMap<String, String>(), GrantType.PASSWORD
-                        .toString(), null, null, null, null, HttpServletResponse.SC_OK, null},
+                        .toString(), null, null, null, null, false, HttpServletResponse.SC_OK, null},
 
                 // Successful request with id token request. With header values
                 {CLIENT_ID_VALUE, AUTHORIZATION_HEADER, new MultivaluedHashMap<String, String>(), GrantType.PASSWORD
-                        .toString(), "idTokenValue", headers1, null, null, HttpServletResponse.SC_OK, null},
+                        .toString(), "idTokenValue", headers1, null, null, false, HttpServletResponse.SC_OK, null},
 
                 // Successful request with id token request. With header which contains null values
                 {CLIENT_ID_VALUE, AUTHORIZATION_HEADER, new MultivaluedHashMap<String, String>(), GrantType.PASSWORD
-                        .toString(), "idTokenValue", headers2, null, null, HttpServletResponse.SC_OK, null},
+                        .toString(), "idTokenValue", headers2, null, null, false, HttpServletResponse.SC_OK, null},
 
                 // Successful request with id token request. With empty header array
                 {CLIENT_ID_VALUE, AUTHORIZATION_HEADER, new MultivaluedHashMap<String, String>(), GrantType.PASSWORD
-                        .toString(), "idTokenValue", headers3, null, null, HttpServletResponse.SC_OK, null},
+                        .toString(), "idTokenValue", headers3, null, null, false, HttpServletResponse.SC_OK, null},
 
                 // Successful token request that will return custom response parameters in response.
                 {CLIENT_ID_VALUE, AUTHORIZATION_HEADER, new MultivaluedHashMap<String, String>(), GrantType.PASSWORD
-                        .toString(), null, null, customResponseParamMap, null, HttpServletResponse.SC_OK, null}
+                        .toString(), null, null, customResponseParamMap, null, false, HttpServletResponse.SC_OK, null},
+
+                // Request with sensitive data in URL. Will give bad request error.
+                {null, null, new MultivaluedHashMap<String, String>(), GrantType.PASSWORD.toString(), null, null, null,
+                        null, true, HttpServletResponse.SC_BAD_REQUEST, null}
         };
     }
 
     @Test(dataProvider = "testIssueAccessTokenDataProvider", groups = "testWithConnection")
     public void testIssueAccessToken(String clientId, String authzHeader, Object paramMapObj, String grantType,
                                      String idToken, Object headerObj, Object customResponseParamObj, Exception e,
-                                     int expectedStatus, String expectedErrorCode) throws Exception {
+                                     boolean containsSensitiveDataInURL, int expectedStatus, String expectedErrorCode)
+            throws Exception {
 
         MultivaluedMap<String, String> paramMap = (MultivaluedMap<String, String>) paramMapObj;
         ResponseHeader[] responseHeaders = (ResponseHeader[]) headerObj;
@@ -283,6 +289,12 @@ public class OAuth2TokenEndpointTest extends TestOAuthEndpointBase {
 
         when(oAuthServerConfiguration.getSupportedGrantTypeValidators()).thenReturn(grantTypeValidators);
         when(oAuth2Service.getOauthApplicationState(CLIENT_ID_VALUE)).thenReturn("ACTIVE");
+
+        if (containsSensitiveDataInURL) {
+            mockStatic(IdentityUtil.class);
+            when(IdentityUtil.shouldAllowSensitiveDataInURL()).thenReturn(false);
+            when(request.getQueryString()).thenReturn("username=dummy-username&password=dummy-pwd");
+        }
 
         Response response;
         try {
