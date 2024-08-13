@@ -176,7 +176,7 @@ public class OpenIDConnectUserEndpointTest extends PowerMockIdentityBaseTest {
                 return null;
             }
         });
-        openIDConnectUserEndpoint.getUserClaimsPost(httpServletRequest, paramMap);
+        openIDConnectUserEndpoint.getUserClaimsPost(httpServletRequest);
     }
 
 }
