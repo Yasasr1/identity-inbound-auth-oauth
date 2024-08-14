@@ -45,6 +45,7 @@ public class UserInforRequestDefaultValidator implements UserInfoRequestValidato
     private static final String ACCESS_TOKEN_PARAM = "access_token=";
     private static final String BEARER = "Bearer";
     private static final String CONTENT_TYPE_HEADER_VALUE = "application/x-www-form-urlencoded";
+    public static final String CHARSET = "charset=";
 
     @Override
     public String validateRequest(HttpServletRequest request) throws UserInfoEndpointException {
@@ -63,9 +64,18 @@ public class UserInforRequestDefaultValidator implements UserInfoRequestValidato
                 throw new UserInfoEndpointException(OAuthError.ResourceResponse.INVALID_REQUEST,
                         "Authorization header is missing");
             }
-            if ((CONTENT_TYPE_HEADER_VALUE).equals(contentTypeHeaders.trim())) {
+            if (contentTypeHeaders.trim().startsWith(CONTENT_TYPE_HEADER_VALUE)) {
+                String charset = getCharsetFromContentType(contentTypeHeaders);
+
+                // Use a default charset if none is provided
+                Charset encodingCharset;
+                try {
+                    encodingCharset = charset != null ? Charset.forName(charset) : StandardCharsets.UTF_8;
+                } catch (IllegalArgumentException e) {
+                    encodingCharset = StandardCharsets.UTF_8;
+                }
                 String[] arrAccessToken = new String[2];
-                String requestBody = EndpointUtil.readRequestBody(request);
+                String requestBody = EndpointUtil.readRequestBody(request, encodingCharset);
                 String[] arrAccessTokenNew;
                 // To check whether the entity-body consist entirely of ASCII [USASCII] characters.
                 if (!isPureAscii(requestBody)) {
@@ -103,5 +113,18 @@ public class UserInforRequestDefaultValidator implements UserInfoRequestValidato
             return false;
         }
         return true;
+    }
+
+    private String getCharsetFromContentType(String contentTypeHeader) {
+        // Split the Content-Type header value to extract charset
+        String[] parts = contentTypeHeader.split(";");
+
+        for (String part : parts) {
+            String trimmedPart = part.trim();
+            if (trimmedPart.toLowerCase().startsWith(CHARSET)) {
+                return trimmedPart.substring(CHARSET.length()).trim();
+            }
+        }
+        return null;
     }
 }

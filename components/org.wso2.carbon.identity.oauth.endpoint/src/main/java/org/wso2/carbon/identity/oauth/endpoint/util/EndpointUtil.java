@@ -102,7 +102,7 @@ import org.wso2.carbon.utils.multitenancy.MultitenantConstants;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -1610,10 +1610,10 @@ public class EndpointUtil {
      * @return Request body.
      * @throws UserInfoEndpointException If an error occurred while reading the request body.
      */
-    public static String readRequestBody(HttpServletRequest request) throws UserInfoEndpointException {
+    public static String readRequestBody(HttpServletRequest request, Charset charset) throws UserInfoEndpointException {
 
         StringBuilder stringBuilder = new StringBuilder();
-        try (Scanner scanner = new Scanner(request.getInputStream(), StandardCharsets.UTF_8.name())) {
+        try (Scanner scanner = new Scanner(request.getInputStream(), charset.name())) {
             while (scanner.hasNextLine()) {
                 stringBuilder.append(scanner.nextLine());
             }
