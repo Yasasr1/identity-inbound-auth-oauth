@@ -19,17 +19,16 @@ package org.wso2.carbon.identity.oauth.endpoint.user.impl;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.oltu.oauth2.common.error.OAuthError;
+import org.wso2.carbon.identity.oauth.endpoint.util.EndpointUtil;
 import org.wso2.carbon.identity.oauth.user.UserInfoEndpointException;
 import org.wso2.carbon.identity.oauth.user.UserInfoRequestValidator;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.StandardCharsets;
-import java.util.Scanner;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.HttpMethod;
@@ -47,7 +46,6 @@ public class UserInforRequestDefaultValidator implements UserInfoRequestValidato
     private static final String BEARER = "Bearer";
     private static final String CONTENT_TYPE_HEADER_VALUE = "application/x-www-form-urlencoded";
 
-
     @Override
     public String validateRequest(HttpServletRequest request) throws UserInfoEndpointException {
 
@@ -55,7 +53,7 @@ public class UserInforRequestDefaultValidator implements UserInfoRequestValidato
         if (authzHeaders == null) {
             String contentTypeHeaders = request.getHeader(HttpHeaders.CONTENT_TYPE);
             // To validate the Content_Type header.
-            if (StringUtils.isEmpty(contentTypeHeaders)) {
+            if (StringUtils.isBlank(contentTypeHeaders)) {
                 throw new UserInfoEndpointException(OAuthError.ResourceResponse.INVALID_REQUEST,
                         "Authorization or Content-Type header is missing");
             }
@@ -66,9 +64,8 @@ public class UserInforRequestDefaultValidator implements UserInfoRequestValidato
                         "Authorization header is missing");
             }
             if ((CONTENT_TYPE_HEADER_VALUE).equals(contentTypeHeaders.trim())) {
-                StringBuilder stringBuilder = readRequestBody(request);
                 String[] arrAccessToken = new String[2];
-                String requestBody = stringBuilder.toString();
+                String requestBody = EndpointUtil.readRequestBody(request);
                 String[] arrAccessTokenNew;
                 // To check whether the entity-body consist entirely of ASCII [USASCII] characters.
                 if (!isPureAscii(requestBody)) {
@@ -91,27 +88,9 @@ public class UserInforRequestDefaultValidator implements UserInfoRequestValidato
         String[] authzHeaderInfo = authzHeaders.trim().split(" ");
         if (authzHeaderInfo.length < 2 || !BEARER.equals(authzHeaderInfo[0])) {
 
-            throw new UserInfoEndpointException(OAuthError.ResourceResponse.INVALID_REQUEST,
-                    "Bearer token missing");
+            throw new UserInfoEndpointException(OAuthError.ResourceResponse.INVALID_REQUEST, "Bearer token missing");
         }
         return authzHeaderInfo[1];
-
-    }
-
-    private static StringBuilder readRequestBody(HttpServletRequest request) throws UserInfoEndpointException {
-
-        StringBuilder stringBuilder = new StringBuilder();
-        Scanner scanner;
-        try {
-            scanner = new Scanner(request.getInputStream(), StandardCharsets.UTF_8.name());
-        } catch (IOException e) {
-            throw new UserInfoEndpointException(OAuthError.ResourceResponse.INVALID_REQUEST,
-                    "can not read the request body");
-        }
-        while (scanner.hasNextLine()) {
-            stringBuilder.append(scanner.nextLine());
-        }
-        return stringBuilder;
     }
 
     public static boolean isPureAscii(String requestBody) {
