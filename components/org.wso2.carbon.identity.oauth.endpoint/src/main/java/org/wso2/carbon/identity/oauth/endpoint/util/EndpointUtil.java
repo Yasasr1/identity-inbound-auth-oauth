@@ -1619,7 +1619,7 @@ public class EndpointUtil {
             }
         } catch (IOException e) {
             throw new UserInfoEndpointException(OAuthError.ResourceResponse.INVALID_REQUEST,
-                    "can not read the request body");
+                    "Unable to read the request body");
         }
         return stringBuilder.toString();
     }
