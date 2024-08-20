@@ -26,6 +26,8 @@ import org.wso2.carbon.identity.oauth2.responsemode.provider.AbstractResponseMod
 import org.wso2.carbon.identity.oauth2.responsemode.provider.AuthorizationResponseDTO;
 import org.wso2.carbon.identity.oauth2.responsemode.provider.ResponseModeProvider;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -83,36 +85,36 @@ public class QueryResponseModeProvider extends AbstractResponseModeProvider {
             String authenticatedIdPs = authorizationResponseDTO.getAuthenticatedIDPs();
             List<String> queryParams = new ArrayList<>();
             if (accessToken != null) {
-                queryParams.add(OAuthConstants.ACCESS_TOKEN_RESPONSE_PARAM + "=" + accessToken);
-                queryParams.add(OAuthConstants.EXPIRES_IN + "=" + validityPeriod);
+                appendQueryParam(queryParams, OAuthConstants.ACCESS_TOKEN_RESPONSE_PARAM, accessToken);
+                appendQueryParam(queryParams, OAuthConstants.EXPIRES_IN, String.valueOf(validityPeriod));
             }
 
             if (tokenType != null) {
-                queryParams.add(OAuthConstants.TOKEN_TYPE + "=" + tokenType);
+                appendQueryParam(queryParams, OAuthConstants.TOKEN_TYPE, tokenType);
             }
 
             if (idToken != null) {
-                queryParams.add(OAuthConstants.ID_TOKEN + "=" + idToken);
+                appendQueryParam(queryParams, OAuthConstants.ID_TOKEN, idToken);
             }
 
             if (code != null) {
-                queryParams.add(OAuthConstants.CODE + "=" + code);
+                appendQueryParam(queryParams, OAuthConstants.CODE, code);
             }
 
             if (authenticatedIdPs != null && !authenticatedIdPs.isEmpty()) {
-                queryParams.add(OAuthConstants.AUTHENTICATED_IDPS + "=" + authenticatedIdPs);
+                appendQueryParam(queryParams, OAuthConstants.AUTHENTICATED_IDPS, authenticatedIdPs);
             }
 
             if (sessionState != null) {
-                queryParams.add(OAuthConstants.SESSION_STATE + "=" + sessionState);
+                appendQueryParam(queryParams, OAuthConstants.SESSION_STATE, sessionState);
             }
 
             if (state != null) {
-                queryParams.add(OAuthConstants.STATE + "=" + state);
+                appendQueryParam(queryParams, OAuthConstants.STATE, state);
             }
 
             if (scope != null) {
-                queryParams.add(OAuthConstants.SCOPE + "=" + scope);
+                appendQueryParam(queryParams, OAuthConstants.SCOPE, scope);
             }
 
             redirectUrl = FrameworkUtils.appendQueryParamsStringToUrl(redirectUrl,
@@ -149,4 +151,9 @@ public class QueryResponseModeProvider extends AbstractResponseModeProvider {
         return AuthResponseType.REDIRECTION;
     }
 
+    private void appendQueryParam(List<String> queryParams, String key, String value) {
+
+        String encodedValue = URLEncoder.encode(value, StandardCharsets.UTF_8);
+        queryParams.add(key + "=" + encodedValue);
+    }
 }

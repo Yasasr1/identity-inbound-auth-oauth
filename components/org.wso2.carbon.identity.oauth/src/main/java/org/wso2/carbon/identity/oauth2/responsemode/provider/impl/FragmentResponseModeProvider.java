@@ -23,6 +23,8 @@ import org.wso2.carbon.identity.oauth.common.OAuthConstants;
 import org.wso2.carbon.identity.oauth2.responsemode.provider.AbstractResponseModeProvider;
 import org.wso2.carbon.identity.oauth2.responsemode.provider.AuthorizationResponseDTO;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -56,36 +58,36 @@ public class FragmentResponseModeProvider extends AbstractResponseModeProvider {
             String authenticatedIdPs = authorizationResponseDTO.getAuthenticatedIDPs();
             List<String> params = new ArrayList<>();
             if (accessToken != null) {
-                params.add(OAuthConstants.ACCESS_TOKEN_RESPONSE_PARAM + "=" + accessToken);
-                params.add(OAuthConstants.EXPIRES_IN + "=" + validityPeriod);
+                appendParam(params, OAuthConstants.ACCESS_TOKEN_RESPONSE_PARAM, accessToken);
+                appendParam(params, OAuthConstants.EXPIRES_IN, String.valueOf(validityPeriod));
             }
 
             if (tokenType != null) {
-                params.add(OAuthConstants.TOKEN_TYPE + "=" + tokenType);
+                appendParam(params, OAuthConstants.TOKEN_TYPE, tokenType);
             }
 
             if (idToken != null) {
-                params.add(OAuthConstants.ID_TOKEN + "=" + idToken);
+                appendParam(params, OAuthConstants.ID_TOKEN, idToken);
             }
 
             if (code != null) {
-                params.add(OAuthConstants.CODE + "=" + code);
+                appendParam(params, OAuthConstants.CODE, code);
             }
 
             if (authenticatedIdPs != null && !authenticatedIdPs.isEmpty()) {
-                params.add(OAuthConstants.AUTHENTICATED_IDPS + "=" + authenticatedIdPs);
+                appendParam(params, OAuthConstants.AUTHENTICATED_IDPS, authenticatedIdPs);
             }
 
             if (sessionState != null) {
-                params.add(OAuthConstants.SESSION_STATE + "=" + sessionState);
+                appendParam(params, OAuthConstants.SESSION_STATE, sessionState);
             }
 
             if (state != null) {
-                params.add(OAuthConstants.STATE + "=" + state);
+                appendParam(params, OAuthConstants.STATE, state);
             }
 
             if (scope != null) {
-                params.add(OAuthConstants.SCOPE + "=" + scope);
+                appendParam(params, OAuthConstants.SCOPE, scope);
             }
 
             redirectUrl += "#" + String.join("&", params);
@@ -120,5 +122,11 @@ public class FragmentResponseModeProvider extends AbstractResponseModeProvider {
     public AuthResponseType getAuthResponseType() {
 
         return AuthResponseType.REDIRECTION;
+    }
+
+    private void appendParam(List<String> params, String key, String value) {
+
+        String encodedValue = URLEncoder.encode(value, StandardCharsets.UTF_8);
+        params.add(key + "=" + encodedValue);
     }
 }
