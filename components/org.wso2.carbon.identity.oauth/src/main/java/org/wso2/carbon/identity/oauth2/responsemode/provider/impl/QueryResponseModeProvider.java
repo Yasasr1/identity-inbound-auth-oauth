@@ -19,6 +19,8 @@
 package org.wso2.carbon.identity.oauth2.responsemode.provider.impl;
 
 import org.apache.commons.lang.StringUtils;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkUtils;
 import org.wso2.carbon.identity.oauth.common.OAuthConstants;
 import org.wso2.carbon.identity.oauth2.internal.OAuth2ServiceComponentHolder;
@@ -26,6 +28,7 @@ import org.wso2.carbon.identity.oauth2.responsemode.provider.AbstractResponseMod
 import org.wso2.carbon.identity.oauth2.responsemode.provider.AuthorizationResponseDTO;
 import org.wso2.carbon.identity.oauth2.responsemode.provider.ResponseModeProvider;
 
+import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -36,6 +39,8 @@ import java.util.List;
  * This class should not be used when response_type has token or id_token
  */
 public class QueryResponseModeProvider extends AbstractResponseModeProvider {
+
+    private static final Log log = LogFactory.getLog(QueryResponseModeProvider.class);
 
     private static final String RESPONSE_MODE = OAuthConstants.ResponseModes.QUERY;
     private static final String FRAGMENT_RESPONSE_MODE = OAuthConstants.ResponseModes.FRAGMENT;
@@ -126,13 +131,12 @@ public class QueryResponseModeProvider extends AbstractResponseModeProvider {
                     authorizationResponseDTO.getErrorResponseDTO().getErrorDescription()
                             .replace(" ", "+");
 
-            if (StringUtils.isNotBlank(authorizationResponseDTO.getSessionState())) {
-                redirectUrl += "&" + OAuthConstants.SESSION_STATE + "=" +
-                        authorizationResponseDTO.getSessionState();
+            if (StringUtils.isNotBlank(sessionState)) {
+                redirectUrl += "&" + OAuthConstants.SESSION_STATE + "=" + encodeValue(sessionState);
             }
 
             if (StringUtils.isNotBlank(state)) {
-                redirectUrl += "&" + OAuthConstants.STATE + "=" + state;
+                redirectUrl += "&" + OAuthConstants.STATE + "=" + encodeValue(state);
             }
         }
         authorizationResponseDTO.setRedirectUrl(redirectUrl);
@@ -153,7 +157,18 @@ public class QueryResponseModeProvider extends AbstractResponseModeProvider {
 
     private void appendQueryParam(List<String> queryParams, String key, String value) {
 
-        String encodedValue = URLEncoder.encode(value, StandardCharsets.UTF_8);
+        String encodedValue = encodeValue(value);
         queryParams.add(key + "=" + encodedValue);
+    }
+
+    private String encodeValue(String value) {
+
+        try {
+            return URLEncoder.encode(value, StandardCharsets.UTF_8.toString());
+        } catch (UnsupportedEncodingException e) {
+            // This exception will not be thrown as UTF-8 is always supported.
+            log.error("Error occurred while encoding the value: " + value, e);
+            return null;
+        }
     }
 }
