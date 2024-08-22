@@ -51,6 +51,7 @@ import org.wso2.carbon.identity.oauth.cache.AppInfoCache;
 import org.wso2.carbon.identity.oauth.cache.AuthorizationGrantCache;
 import org.wso2.carbon.identity.oauth.cache.AuthorizationGrantCacheEntry;
 import org.wso2.carbon.identity.oauth.cache.AuthorizationGrantCacheKey;
+import org.wso2.carbon.identity.oauth.config.OAuthServerConfiguration;
 import org.wso2.carbon.identity.oauth.dao.OAuthAppDO;
 import org.wso2.carbon.identity.oauth.internal.OAuthComponentServiceHolder;
 import org.wso2.carbon.identity.oauth2.IdentityOAuth2Exception;
@@ -149,6 +150,10 @@ public class DefaultIDTokenBuilderTest extends PowerMockTestCase {
                 .put(SAML2BearerGrantHandlerTest.buildClaimMapping(PHONE_NUMBER_VERIFIED), "phone");
         LinkedHashSet acrValuesHashSet = new LinkedHashSet<>();
         acrValuesHashSet.add(new Object());
+
+        WhiteboxImpl.setInternalState(OAuthServerConfiguration.getInstance(), "signatureAlgorithm", "SHA256withRSA");
+        OAuthServerConfiguration.getInstance().populateOAuthTokenIssuerMap();
+
         AuthorizationGrantCacheEntry authorizationGrantCacheEntry = new AuthorizationGrantCacheEntry(userAttributes);
         authorizationGrantCacheEntry.setSubjectClaim(messageContext.getAuthorizedUser().getUserName());
         authorizationGrantCacheEntry.setNonceValue("nonce");
