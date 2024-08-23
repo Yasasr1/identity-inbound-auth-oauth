@@ -83,6 +83,7 @@ public class JwksEndpointTest extends PowerMockIdentityBaseTest {
     private static final String CERT_THUMB_PRINT = "generatedCertThrumbPrint";
     private static final String ALG = "RS256";
     private static final String USE = "sig";
+    private static final String ENABLE_X5C_IN_RESPONSE = "JWTValidatorConfigs.JWKSEndpoint.EnableX5CInResponse";
     private static final JSONArray X5C_ARRAY = new JSONArray();
     private static final JSONArray X5T_ARRAY = new JSONArray();
     private JwksEndpoint jwksEndpoint;
@@ -204,6 +205,8 @@ public class JwksEndpointTest extends PowerMockIdentityBaseTest {
         mockStatic(KeyStoreManager.class);
         when(KeyStoreManager.getInstance(anyInt())).thenReturn(keyStoreManager);
         when(keyStoreManager.getKeyStore("foo-com.jks")).thenReturn(getKeyStoreFromFile("foo-com.jks", "foo.com"));
+        mockStatic(IdentityUtil.class);
+        when(IdentityUtil.getProperty(ENABLE_X5C_IN_RESPONSE)).thenReturn("true");
 
         String result = jwksEndpoint.jwks();
 
