@@ -32,6 +32,7 @@ import org.wso2.carbon.identity.oauth.common.OAuthConstants;
 import org.wso2.carbon.identity.oauth.common.exception.InvalidOAuthClientException;
 import org.wso2.carbon.identity.oauth.config.OAuthServerConfiguration;
 import org.wso2.carbon.identity.oauth.dao.OAuthAppDO;
+import org.wso2.carbon.identity.oauth.tokenprocessor.TokenProvider;
 import org.wso2.carbon.identity.oauth2.IdentityOAuth2Exception;
 import org.wso2.carbon.identity.oauth2.authcontext.AuthorizationContextTokenGenerator;
 import org.wso2.carbon.identity.oauth2.dao.OAuthTokenPersistenceFactory;
@@ -63,6 +64,7 @@ public class TokenValidationHandler {
     AuthorizationContextTokenGenerator tokenGenerator = null;
     private static final Log log = LogFactory.getLog(TokenValidationHandler.class);
     private Map<String, OAuth2TokenValidator> tokenValidators = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+    private TokenProvider tokenValidationProcessor;
     private static final String BEARER_TOKEN_TYPE = "Bearer";
     private static final String BEARER_TOKEN_TYPE_JWT = "jwt";
     private static final String BUILD_FQU_FROM_SP_CONFIG = "OAuth.BuildSubjectIdentifierFromSPConfig";
@@ -120,6 +122,7 @@ public class TokenValidationHandler {
                 log.error(errorMsg, e);
             }
         }
+        tokenValidationProcessor = OAuth2ServiceComponentHolder.getInstance().getTokenProvider();
     }
 
     public static TokenValidationHandler getInstance() {
@@ -177,7 +180,8 @@ public class TokenValidationHandler {
         }
 
         try {
-            accessTokenDO = OAuth2Util.findAccessToken(requestDTO.getAccessToken().getIdentifier(), false);
+            accessTokenDO = OAuth2ServiceComponentHolder.getInstance().getTokenProvider()
+                    .getVerifiedAccessToken(requestDTO.getAccessToken().getIdentifier(), false);
         } catch (IllegalArgumentException e) {
             // Access token not found in the system.
             return buildClientAppErrorResponse(e.getMessage());
@@ -274,7 +278,8 @@ public class TokenValidationHandler {
         // Adding the AccessTokenDO as a context property for further use
         AccessTokenDO accessTokenDO;
         try {
-            accessTokenDO = OAuth2Util.findAccessToken(oAuth2Token.getIdentifier(), true);
+            accessTokenDO = OAuth2ServiceComponentHolder.getInstance().getTokenProvider()
+                    .getVerifiedAccessToken(oAuth2Token.getIdentifier(), true);
             if (accessTokenDO != null) {
                 messageContext.addProperty(OAuthConstants.ACCESS_TOKEN_DO, accessTokenDO);
             }
@@ -468,8 +473,8 @@ public class TokenValidationHandler {
         } else {
             try {
                 String tenantDomain = PrivilegedCarbonContext.getThreadLocalCarbonContext().getTenantDomain();
-                accessTokenDO = OAuth2Util.findAccessToken(validationRequest.getAccessToken().getIdentifier(),
-                        false);
+                accessTokenDO = OAuth2ServiceComponentHolder.getInstance().getTokenProvider()
+                        .getVerifiedAccessToken(validationRequest.getAccessToken().getIdentifier(), false);
                 boolean isCrossTenantTokenIntrospectionAllowed
                         = OAuthServerConfiguration.getInstance().isCrossTenantTokenIntrospectionAllowed();
                 if (!isCrossTenantTokenIntrospectionAllowed && accessTokenDO != null &&
@@ -786,7 +791,7 @@ public class TokenValidationHandler {
 
     private AccessTokenDO findRefreshToken(String refreshToken) throws IdentityOAuth2Exception {
 
-        return OAuthTokenPersistenceFactory.getInstance().getTokenManagementDAO().getRefreshToken(refreshToken);
+        return OAuth2ServiceComponentHolder.getInstance().getTokenProvider().getVerifiedRefreshToken(refreshToken);
     }
 
     private boolean isJWTTokenValidation(String tokenIdentifier) {
