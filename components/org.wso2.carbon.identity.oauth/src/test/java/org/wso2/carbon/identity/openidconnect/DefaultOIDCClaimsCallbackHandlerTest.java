@@ -999,6 +999,7 @@ public class DefaultOIDCClaimsCallbackHandlerTest extends PowerMockTestCase {
 
         AuthorizationGrantCacheEntry authorizationGrantCacheEntry = mock(AuthorizationGrantCacheEntry.class);
         mockAuthorizationGrantCache(authorizationGrantCacheEntry);
+        mockClaimHandler();
 
         UserRealm userRealm = getUserRealmWithUserClaims(USER_CLAIMS_MAP);
         mockUserRealm(requestMsgCtx.getAuthorizedUser().toString(), userRealm);
