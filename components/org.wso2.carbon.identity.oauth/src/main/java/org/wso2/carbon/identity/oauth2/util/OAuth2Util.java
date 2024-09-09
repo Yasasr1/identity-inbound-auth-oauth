@@ -4031,8 +4031,8 @@ public class OAuth2Util {
         if (tokenResponse.getAuthorizationContextToken().getTokenString() != null) {
             AccessTokenDO accessTokenDO = null;
             try {
-                accessTokenDO = OAuth2Util.findAccessToken(
-                        tokenResponse.getAuthorizationContextToken().getTokenString(), false);
+                accessTokenDO = OAuth2ServiceComponentHolder.getInstance().getTokenProvider()
+                        .getVerifiedAccessToken(tokenResponse.getAuthorizationContextToken().getTokenString(), false);
             } catch (IdentityOAuth2Exception e) {
                 throw new UserInfoEndpointException("Error occurred while obtaining access token.", e);
             }

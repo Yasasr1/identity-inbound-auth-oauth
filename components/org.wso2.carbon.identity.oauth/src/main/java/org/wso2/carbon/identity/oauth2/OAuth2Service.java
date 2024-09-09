@@ -520,8 +520,8 @@ public class OAuth2Service extends AbstractAdmin {
                 }
 
                 if (refreshTokenFirst) {
-                    refreshTokenDO = OAuthTokenPersistenceFactory.getInstance().getTokenManagementDAO()
-                            .validateRefreshToken(revokeRequestDTO.getConsumerKey(), revokeRequestDTO.getToken());
+                    refreshTokenDO = OAuth2ServiceComponentHolder.getInstance().getTokenProvider()
+                            .getVerifiedRefreshToken(revokeRequestDTO.getToken(), revokeRequestDTO.getConsumerKey());
 
                     if (refreshTokenDO == null ||
                             StringUtils.isEmpty(refreshTokenDO.getRefreshTokenState()) ||
@@ -530,19 +530,20 @@ public class OAuth2Service extends AbstractAdmin {
                                     OAuthConstants.TokenStates.TOKEN_STATE_EXPIRED
                                             .equals(refreshTokenDO.getRefreshTokenState()))) {
 
-                        accessTokenDO = OAuthTokenPersistenceFactory.getInstance()
-                                .getAccessTokenDAO().getAccessToken(revokeRequestDTO.getToken(), true);
+                        accessTokenDO = OAuth2ServiceComponentHolder.getInstance().getTokenProvider()
+                                .getVerifiedAccessToken(revokeRequestDTO.getToken(), true);
                         refreshTokenDO = null;
                     }
 
                 } else {
 
-                    accessTokenDO = OAuth2Util.findAccessToken(revokeRequestDTO.getToken(), true);
+                    accessTokenDO = OAuth2ServiceComponentHolder.getInstance().getTokenProvider()
+                            .getVerifiedAccessToken(revokeRequestDTO.getToken(), true);
                     if (accessTokenDO == null) {
 
-                        refreshTokenDO = OAuthTokenPersistenceFactory.getInstance()
-                                .getTokenManagementDAO().validateRefreshToken(revokeRequestDTO.getConsumerKey(),
-                                        revokeRequestDTO.getToken());
+                        refreshTokenDO = OAuth2ServiceComponentHolder.getInstance().getTokenProvider()
+                                .getVerifiedRefreshToken(revokeRequestDTO.getToken(),
+                                        revokeRequestDTO.getConsumerKey());
 
                         if (refreshTokenDO == null ||
                                 StringUtils.isEmpty(refreshTokenDO.getRefreshTokenState()) ||
