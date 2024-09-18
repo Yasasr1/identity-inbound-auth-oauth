@@ -565,7 +565,7 @@ public class AuthorizationCodeDAOImpl extends AbstractOAuthDAO implements Author
         } catch (SQLException e) {
             IdentityDatabaseUtil.rollbackTransaction(connection);
             throw new IdentityOAuth2Exception("Error occurred while revoking authorization code with username : " +
-                    authenticatedUser.getUserName() + " tenant ID : " + OAuth2Util.getTenantId(authenticatedUser
+                    authenticatedUser.getUserName() + " and tenant ID : " + OAuth2Util.getTenantId(authenticatedUser
                     .getTenantDomain()), e);
         } finally {
             IdentityDatabaseUtil.closeAllConnections(connection, null, ps);

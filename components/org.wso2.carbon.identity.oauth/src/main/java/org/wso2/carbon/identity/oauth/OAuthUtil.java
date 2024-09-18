@@ -546,7 +546,7 @@ public final class OAuthUtil {
                                 OAuthConstants.AuthorizationCodeState.REVOKED);
             }
         } catch (IdentityOAuth2Exception e) {
-            String errorMsg = "Error occurred while revoking authorization codes for user: " + username;
+            String errorMsg = String.format("Error occurred while revoking authorization codes for user: %s", username);
             if (LOG.isDebugEnabled()) {
                 LOG.debug(errorMsg);
             }

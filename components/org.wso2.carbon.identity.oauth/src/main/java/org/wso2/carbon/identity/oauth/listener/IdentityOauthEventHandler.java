@@ -223,7 +223,7 @@ public class IdentityOauthEventHandler extends AbstractEventHandler {
         }
     }
 
-    private void revokeCodesOfLockedUser(String userName, UserStoreManager userStoreManager)
+    private void revokeCodesOfLockedUser(String username, UserStoreManager userStoreManager)
             throws UserStoreException {
 
         String errorCode =
@@ -231,9 +231,9 @@ public class IdentityOauthEventHandler extends AbstractEventHandler {
 
         if (UserCoreConstants.ErrorCode.USER_IS_LOCKED.equalsIgnoreCase(errorCode)) {
             if (log.isDebugEnabled()) {
-                log.debug(String.format("User %s is locked. Hence revoking user's authorization codes.", userName));
+                log.debug(String.format("User %s is locked. Hence revoking user's authorization codes.", username));
             }
-            OAuthUtil.revokeAuthzCodes(userName, userStoreManager);
+            OAuthUtil.revokeAuthzCodes(username, userStoreManager);
         }
     }
 

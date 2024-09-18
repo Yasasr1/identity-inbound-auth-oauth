@@ -51,7 +51,7 @@ public interface AuthorizationCodeDAO {
     default List<AuthzCodeDO> getAuthorizationCodesDataByUser(AuthenticatedUser authenticatedUser)
             throws IdentityOAuth2Exception {
 
-        return null;
+        return Collections.emptyList();
     }
 
     default List<AuthzCodeDO> getAuthorizationCodesByUserForOpenidScope(AuthenticatedUser authenticatedUser) throws
