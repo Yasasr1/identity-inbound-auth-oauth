@@ -700,7 +700,7 @@ public class AccessTokenIssuer {
     private String getDefaultSubject(ServiceProvider serviceProvider, AuthenticatedUser authenticatedUser)
             throws UserIdNotFoundException {
 
-        if (useUsernameAsSubClaim()) {
+        if (isUsernameAsSubClaim()) {
             return authenticatedUser.getUserName();
         }
         String subject;
@@ -1097,12 +1097,8 @@ public class AccessTokenIssuer {
      *
      * @return Whether username should be used as the subject claim. If false, userId will be used as the subject claim.
      */
-    private boolean useUsernameAsSubClaim() {
+    private boolean isUsernameAsSubClaim() {
 
-        String useUsernameAsSubClaim = IdentityUtil.getProperty(SERVICE_PROVIDERS_SUB_CLAIM);
-        if (!StringUtils.isEmpty(useUsernameAsSubClaim)) {
-            return Boolean.parseBoolean(useUsernameAsSubClaim);
-        }
-        return false;
+        return Boolean.parseBoolean(IdentityUtil.getProperty(SERVICE_PROVIDERS_SUB_CLAIM));
     }
 }
