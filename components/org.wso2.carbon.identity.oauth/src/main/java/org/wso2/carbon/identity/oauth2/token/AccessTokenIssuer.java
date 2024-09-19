@@ -103,6 +103,7 @@ public class AccessTokenIssuer {
     private static final Log log = LogFactory.getLog(AccessTokenIssuer.class);
     private Map<String, AuthorizationGrantHandler> authzGrantHandlers;
     public static final String OAUTH_APP_DO = "OAuthAppDO";
+    private static final String SERVICE_PROVIDERS_SUB_CLAIM = "ServiceProviders.UseUsernameAsSubClaim";
 
     /**
      * Private constructor which will not allow to create objects of this class from outside
@@ -698,6 +699,10 @@ public class AccessTokenIssuer {
 
     private String getDefaultSubject(ServiceProvider serviceProvider, AuthenticatedUser authenticatedUser)
             throws UserIdNotFoundException {
+
+        if (useUsernameAsSubClaim()) {
+            return authenticatedUser.getUserName();
+        }
         String subject;
         boolean useUserIdForDefaultSubject = false;
         ServiceProviderProperty[] spProperties = serviceProvider.getSpProperties();
@@ -1085,5 +1090,19 @@ public class AccessTokenIssuer {
             return Optional.of(authorizationGrantCacheEntry);
         }
         return Optional.empty();
+    }
+
+    /**
+     * To get the config value to determine the subject claim value.
+     *
+     * @return Whether username should be used as the subject claim. If false, userId will be used as the subject claim.
+     */
+    private boolean useUsernameAsSubClaim() {
+
+        String useUsernameAsSubClaim = IdentityUtil.getProperty(SERVICE_PROVIDERS_SUB_CLAIM);
+        if (!StringUtils.isEmpty(useUsernameAsSubClaim)) {
+            return Boolean.parseBoolean(useUsernameAsSubClaim);
+        }
+        return false;
     }
 }
