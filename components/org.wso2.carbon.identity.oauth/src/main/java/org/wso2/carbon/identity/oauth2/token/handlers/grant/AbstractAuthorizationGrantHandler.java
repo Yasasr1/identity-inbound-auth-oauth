@@ -89,7 +89,7 @@ public abstract class AbstractAuthorizationGrantHandler implements Authorization
     protected static final int SECONDS_TO_MILISECONDS_FACTOR = 1000;
     private boolean isHashDisabled = OAuth2Util.isHashDisabled();
 
-    private static boolean renewWithoutRevokingExistingEnabled = Boolean.parseBoolean(IdentityUtil.
+    private static final boolean renewWithoutRevokingExistingEnabled = Boolean.parseBoolean(IdentityUtil.
             getProperty(RENEW_TOKEN_WITHOUT_REVOKING_EXISTING_ENABLE_CONFIG));
 
     @Override
@@ -1097,9 +1097,6 @@ public abstract class AbstractAuthorizationGrantHandler implements Authorization
         String tokenType = (oAuthAppDO != null) ? oAuthAppDO.getTokenType() : null;
 
         if (JWT.equalsIgnoreCase(tokenType)) {
-            boolean renewWithoutRevokingExistingEnabled = Boolean.parseBoolean(IdentityUtil.
-                    getProperty(RENEW_TOKEN_WITHOUT_REVOKING_EXISTING_ENABLE_CONFIG));
-
             if (renewWithoutRevokingExistingEnabled && tokReqMsgCtx != null && (tokReqMsgCtx.getTokenBinding() == null
                     || StringUtils.isBlank(tokReqMsgCtx.getTokenBinding().getBindingReference()))) {
                 if (OAuth2ServiceComponentHolder.getJwtRenewWithoutRevokeAllowedGrantTypes()
