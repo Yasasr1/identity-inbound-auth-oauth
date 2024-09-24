@@ -184,6 +184,8 @@ public final class OAuthConstants {
 
     public static final String READ_AMR_VALUE_FROM_IDP = "OAuth.ReplaceDefaultAMRValuesWithIDPSentValues";
 
+    public static final String OAUTH_APP = "OAuthAppDO";
+
     private OAuthConstants() {
 
     }
