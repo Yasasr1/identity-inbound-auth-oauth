@@ -165,7 +165,7 @@ public class DefaultOIDCClaimsCallbackHandler implements CustomClaimsCallbackHan
             userClaimsInOIDCDialect = retrieveClaimsForLocalUser(requestMsgCtx);
         } else {
             // Get claim map from the cached attributes
-            userClaimsInOIDCDialect = getOIDCClaimMapFromUserAttributes(userAttributes);
+            userClaimsInOIDCDialect = getOIDCClaimsFromUserAttributes(userAttributes, requestMsgCtx);
         }
 
         Object hasNonOIDCClaimsProperty = requestMsgCtx.getProperty(OIDCConstants.HAS_NON_OIDC_CLAIMS);
@@ -532,6 +532,38 @@ public class DefaultOIDCClaimsCallbackHandler implements CustomClaimsCallbackHan
             }
         }
         return claims;
+    }
+
+    /**
+     * Get oidc claims mapping.
+     *
+     * @param userAttributes    User attributes.
+     * @param requestMsgCtx     Request Context.
+     * @return User attributes Map.
+     */
+    private Map<String, Object> getOIDCClaimsFromUserAttributes(Map<ClaimMapping, String> userAttributes,
+                                                                OAuthTokenReqMessageContext requestMsgCtx)
+            throws IdentityOAuth2Exception {
+
+        String spTenantDomain = getServiceProviderTenantDomain(requestMsgCtx);
+        Map<String, String> claims = new HashMap<>();
+        if (isNotEmpty(userAttributes)) {
+            for (Map.Entry<ClaimMapping, String> entry : userAttributes.entrySet()) {
+                claims.put(entry.getKey().getRemoteClaim().getClaimUri(), entry.getValue().toString());
+            }
+        }
+        Map<String, Object> oidcClaims = new HashMap<>();
+        try {
+            oidcClaims = getUserClaimsInOIDCDialect(spTenantDomain, claims);
+            // Merge the initial claims into oidcClaims, while prioritizing the initial claims map.
+            for (Map.Entry<String, String> claimEntry : claims.entrySet()) {
+                oidcClaims.put(claimEntry.getKey(), claimEntry.getValue());
+            }
+            return oidcClaims;
+        } catch (ClaimMetadataException e) {
+            throw new IdentityOAuth2Exception("Error occurred while mapping claims for user: " +
+                    requestMsgCtx.getAuthorizedUser() + " from userstore.", e);
+        }
     }
 
     private Map<String, Object> getUserClaimsInOIDCDialect(String spTenantDomain,

@@ -45,6 +45,7 @@ import org.wso2.carbon.identity.oauth.common.token.bindings.TokenBinderInfo;
 import org.wso2.carbon.identity.oauth.config.OAuthServerConfiguration;
 import org.wso2.carbon.identity.oauth.dto.ScopeDTO;
 import org.wso2.carbon.identity.oauth.internal.OAuthComponentServiceHolder;
+import org.wso2.carbon.identity.oauth.tokenprocessor.TokenProvider;
 import org.wso2.carbon.identity.oauth2.OAuth2ScopeService;
 import org.wso2.carbon.identity.oauth2.OAuth2Service;
 import org.wso2.carbon.identity.oauth2.OAuth2TokenValidationService;
@@ -657,6 +658,39 @@ public class OAuth2ServiceComponent {
             log.debug("Unset organization user resident resolver service.");
         }
         OAuth2ServiceComponentHolder.setOrganizationUserResidentResolverService(null);
+    }
+
+    /**
+     * Sets the token provider.
+     *
+     * @param tokenProvider TokenProvider
+     */
+    @Reference(
+            name = "token.provider",
+            service = TokenProvider.class,
+            cardinality = ReferenceCardinality.OPTIONAL,
+            policy = ReferencePolicy.DYNAMIC,
+            unbind = "unsetTokenProvider"
+    )
+    protected void setTokenProvider(TokenProvider tokenProvider) {
+
+        if (log.isDebugEnabled()) {
+            log.debug("Setting token provider.");
+        }
+        OAuth2ServiceComponentHolder.getInstance().setTokenProvider(tokenProvider);
+    }
+
+    /**
+     * Unsets the token provider.
+     *
+     * @param tokenProvider TokenProvider
+     */
+    protected void unsetTokenProvider(TokenProvider tokenProvider) {
+
+        if (log.isDebugEnabled()) {
+            log.debug("Unset token provider.");
+        }
+        OAuth2ServiceComponentHolder.getInstance().setTokenProvider(null);
     }
 
     @Reference(

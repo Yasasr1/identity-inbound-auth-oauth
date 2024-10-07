@@ -27,6 +27,8 @@ import org.wso2.carbon.identity.event.services.IdentityEventService;
 import org.wso2.carbon.identity.handler.event.account.lock.service.AccountLockService;
 import org.wso2.carbon.identity.oauth.OAuthAdminServiceImpl;
 import org.wso2.carbon.identity.oauth.dto.ScopeDTO;
+import org.wso2.carbon.identity.oauth.tokenprocessor.DefaultTokenProvider;
+import org.wso2.carbon.identity.oauth.tokenprocessor.TokenProvider;
 import org.wso2.carbon.identity.oauth2.authz.validators.ResponseTypeRequestValidator;
 import org.wso2.carbon.identity.oauth2.bean.Scope;
 import org.wso2.carbon.identity.oauth2.client.authentication.OAuthClientAuthenticator;
@@ -78,6 +80,7 @@ public class OAuth2ServiceComponentHolder {
     private static IdentityEventService identityEventService;
     private static List<String> jwtRenewWithoutRevokeAllowedGrantTypes = new ArrayList<>();
     private static AccountLockService accountLockService;
+    private TokenProvider tokenProvider;
 
     private OAuth2ServiceComponentHolder() {
 
@@ -486,5 +489,28 @@ public class OAuth2ServiceComponentHolder {
     public static AccountLockService getAccountLockService() {
 
         return OAuth2ServiceComponentHolder.accountLockService;
+    }
+
+    /**
+     * Get token provider.
+     *
+     * @return TokenProvider
+     */
+    public TokenProvider getTokenProvider() {
+
+        if (tokenProvider == null) {
+            tokenProvider = new DefaultTokenProvider();
+        }
+        return tokenProvider;
+    }
+
+    /**
+     * Set token provider.
+     *
+     * @param tokenProvider TokenProvider
+     */
+    public void setTokenProvider(TokenProvider tokenProvider) {
+
+        this.tokenProvider = tokenProvider;
     }
 }

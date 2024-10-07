@@ -199,7 +199,8 @@ public abstract class AbstractUserInfoResponseBuilder implements UserInfoRespons
             try {
                 // Get the Access Token details from the database/cache to check if the token is consented or not.
                 String accessToken = validationResponseDTO.getAuthorizationContextToken().getTokenString();
-                AccessTokenDO accessTokenDO = OAuth2Util.findAccessToken(accessToken, false);
+                AccessTokenDO accessTokenDO = OAuth2ServiceComponentHolder.getInstance().getTokenProvider()
+                        .getVerifiedAccessToken(accessToken, false);
                 boolean isConsentedToken = accessTokenDO.isConsentedToken();
                 return OIDCClaimUtil.filterUserClaimsBasedOnConsent(userClaims, user, clientId, tenantDomain, grantType,
                         getServiceProvider(tenantDomain, clientId), isConsentedToken);

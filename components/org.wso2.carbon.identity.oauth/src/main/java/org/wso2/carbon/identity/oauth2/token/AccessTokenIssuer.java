@@ -103,6 +103,7 @@ public class AccessTokenIssuer {
     private static final Log log = LogFactory.getLog(AccessTokenIssuer.class);
     private Map<String, AuthorizationGrantHandler> authzGrantHandlers;
     public static final String OAUTH_APP_DO = "OAuthAppDO";
+    private static final String SERVICE_PROVIDERS_SUB_CLAIM = "ServiceProviders.UseUsernameAsSubClaim";
 
     /**
      * Private constructor which will not allow to create objects of this class from outside
@@ -685,7 +686,7 @@ public class AccessTokenIssuer {
                 subject = getFormattedSubjectClaim(serviceProvider, subject, userStoreDomain, userTenantDomain);
             } catch (UserIdNotFoundException e) {
                 throw new IdentityOAuth2Exception("User id not found for user: "
-                        + authenticatedUser.getLoggableUserId(), e);
+                        + authenticatedUser.getLoggableMaskedUserId(), e);
             }
             if (log.isDebugEnabled()) {
                 log.debug("No subject claim defined for service provider: " + serviceProvider.getApplicationName()
@@ -698,6 +699,10 @@ public class AccessTokenIssuer {
 
     private String getDefaultSubject(ServiceProvider serviceProvider, AuthenticatedUser authenticatedUser)
             throws UserIdNotFoundException {
+
+        if (isUsernameAsSubClaim()) {
+            return authenticatedUser.getUserName();
+        }
         String subject;
         boolean useUserIdForDefaultSubject = false;
         ServiceProviderProperty[] spProperties = serviceProvider.getSpProperties();
@@ -1085,5 +1090,15 @@ public class AccessTokenIssuer {
             return Optional.of(authorizationGrantCacheEntry);
         }
         return Optional.empty();
+    }
+
+    /**
+     * To get the config value to determine the subject claim value.
+     *
+     * @return Whether username should be used as the subject claim. If false, userId will be used as the subject claim.
+     */
+    private boolean isUsernameAsSubClaim() {
+
+        return Boolean.parseBoolean(IdentityUtil.getProperty(SERVICE_PROVIDERS_SUB_CLAIM));
     }
 }
