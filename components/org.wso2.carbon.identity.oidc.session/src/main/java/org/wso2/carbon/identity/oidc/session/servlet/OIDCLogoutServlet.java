@@ -956,6 +956,9 @@ public class OIDCLogoutServlet extends HttpServlet {
                 StringUtils.isBlank(request.getParameter(OIDCSessionConstants.OIDC_CLIENT_ID_PARAM)) &&
                 StringUtils.isBlank(idTokenHint)) || (!OIDCSessionManagementUtil.useClientIdLogoutParam() &&
                 StringUtils.isEmpty(idTokenHint)) || StringUtils.isEmpty(postLogoutRedirectUri)) {
+            String state = request
+                    .getParameter(OIDCSessionConstants.OIDC_STATE_PARAM);
+            redirectURL = appendStateQueryParam(redirectURL, state);
             response.sendRedirect(getRedirectURL(redirectURL, request));
             return;
         }
