@@ -39,6 +39,7 @@ import org.wso2.carbon.identity.application.mgt.listener.ApplicationMgtListener;
 import org.wso2.carbon.identity.core.util.IdentityCoreInitializedEvent;
 import org.wso2.carbon.identity.event.handler.AbstractEventHandler;
 import org.wso2.carbon.identity.event.services.IdentityEventService;
+import org.wso2.carbon.identity.handler.event.account.lock.service.AccountLockService;
 import org.wso2.carbon.identity.oauth.common.OAuthConstants;
 import org.wso2.carbon.identity.oauth.common.token.bindings.TokenBinderInfo;
 import org.wso2.carbon.identity.oauth.config.OAuthServerConfiguration;
@@ -679,6 +680,29 @@ public class OAuth2ServiceComponent {
             log.debug("IdentityEventService unset in OAuth2ServiceComponent bundle");
         }
         OAuth2ServiceComponentHolder.setIdentityEventService(null);
+    }
+
+    @Reference(
+            name = "org.wso2.carbon.identity.handler.event.account.lock.service.AccountLockService",
+            service = AccountLockService.class,
+            cardinality = ReferenceCardinality.MANDATORY,
+            policy = ReferencePolicy.DYNAMIC,
+            unbind = "unsetAccountLockService"
+    )
+    protected void setAccountLockService(AccountLockService accountLockService) {
+
+        if (log.isDebugEnabled()) {
+            log.debug("AccountLockService set in OAuth2ServiceComponent bundle.");
+        }
+        OAuth2ServiceComponentHolder.setAccountLockService(accountLockService);
+    }
+
+    protected void unsetAccountLockService(AccountLockService accountLockService) {
+
+        if (log.isDebugEnabled()) {
+            log.debug("AccountLockService unset in OAuth2ServiceComponent bundle.");
+        }
+        OAuth2ServiceComponentHolder.setAccountLockService(null);
     }
 
     private static void loadScopeConfigFile() {
