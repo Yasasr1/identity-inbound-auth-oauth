@@ -410,6 +410,21 @@ public final class OAuthConstants {
 
             }
         }
+
+        /**
+         * Define Authorization request constants with i18n keys which will be mapped to the error
+         * message in the frontend.
+         */
+        public static class AuthorizationResponsei18nKey {
+
+            public static final String CALLBACK_NOT_MATCH = "callback.not.match";
+            public static final String APPLICATION_NOT_FOUND = "application.not.found";
+            public static final String INVALID_REDIRECT_URI = "invalid.redirect.uri";
+
+            private AuthorizationResponsei18nKey() {
+
+            }
+        }
     }
 
     /**
