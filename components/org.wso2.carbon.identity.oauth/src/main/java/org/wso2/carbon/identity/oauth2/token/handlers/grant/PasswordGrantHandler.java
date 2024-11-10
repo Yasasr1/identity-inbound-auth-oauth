@@ -248,6 +248,13 @@ public class PasswordGrantHandler extends AbstractAuthorizationGrantHandler {
                 log.debug("user " + tokenReq.getResourceOwnerUsername() + " authenticated: " + authenticated);
             }
 
+            /* The domain qualified username should be provided for the downstream tasks
+            executed after triggering password expiry validation event. */
+            if (authenticationResult.getAuthenticatedUser().isPresent()) {
+                tenantAwareUserName = UserCoreUtil.addDomainToName(username, authenticationResult.getAuthenticatedUser()
+                        .get().getUserStoreDomain());
+            }
+
             triggerPasswordExpiryValidationEvent(PASSWORD_GRANT_POST_AUTHENTICATION_EVENT, tenantAwareUserName,
                     userTenantDomain, userStoreManager, authenticated);
             if (log.isDebugEnabled()) {
