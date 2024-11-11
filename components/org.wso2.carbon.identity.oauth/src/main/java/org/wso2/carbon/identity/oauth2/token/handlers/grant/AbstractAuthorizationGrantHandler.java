@@ -155,16 +155,24 @@ public abstract class AbstractAuthorizationGrantHandler implements Authorization
             AccessTokenDO existingTokenBean = null;
 
             OAuthAppDO oAuthAppDO = (OAuthAppDO) tokReqMsgCtx.getProperty(OAUTH_APP);
-            String tokenType = (oAuthAppDO != null) ? oAuthAppDO.getTokenType() : null;
+            String tokenIssuerName = (oAuthAppDO != null) ? oAuthAppDO.getTokenType() : null;
+            String tokenType = null;
+            if (tokenIssuerName != null) {
+                tokenType = OAuthServerConfiguration.getInstance().getSupportedTokenIssuers()
+                        .get(tokenIssuerName).getAccessTokenType();
+            }
 
             /*
             Check if the token type is JWT and renew without revoking existing tokens is enabled.
             Additionally, ensure that the grant type used for the token request is allowed to renew without revoke,
             based on the config.
             */
-            if (JWT.equals(tokenType) && renewWithoutRevokingExistingEnabled &&
-                    OAuth2ServiceComponentHolder.getJwtRenewWithoutRevokeAllowedGrantTypes()
-                            .contains(tokReqMsgCtx.getOauth2AccessTokenReqDTO().getGrantType())) {
+            boolean isJWTAndRenewEnabled = (JWT.equalsIgnoreCase(tokenIssuerName) || JWT.equalsIgnoreCase(tokenType))
+                    && renewWithoutRevokingExistingEnabled;
+            boolean isGrantTypeAllowed = OAuth2ServiceComponentHolder.getJwtRenewWithoutRevokeAllowedGrantTypes()
+                    .contains(tokReqMsgCtx.getOauth2AccessTokenReqDTO().getGrantType());
+
+            if (isJWTAndRenewEnabled && isGrantTypeAllowed) {
                 /*
                 If the application does not have a token binding type (i.e., no specific binding type is set),
                 binding reference will be randomly generated UUID, in that case we can generate a new access token
@@ -1094,9 +1102,14 @@ public abstract class AbstractAuthorizationGrantHandler implements Authorization
          *     allowed_grant_types = ["client_credentials","password", ...]
          */
         OAuthAppDO oAuthAppDO = (OAuthAppDO) tokReqMsgCtx.getProperty(OAUTH_APP);
-        String tokenType = (oAuthAppDO != null) ? oAuthAppDO.getTokenType() : null;
+        String tokenIssuerName = (oAuthAppDO != null) ? oAuthAppDO.getTokenType() : null;
+        String tokenType = null;
+        if (tokenIssuerName != null) {
+            tokenType = OAuthServerConfiguration.getInstance().getSupportedTokenIssuers()
+                    .get(tokenIssuerName).getAccessTokenType();
+        }
 
-        if (JWT.equalsIgnoreCase(tokenType)) {
+        if (JWT.equalsIgnoreCase(tokenIssuerName) || JWT.equalsIgnoreCase(tokenType)) {
             if (renewWithoutRevokingExistingEnabled && tokReqMsgCtx != null && (tokReqMsgCtx.getTokenBinding() == null
                     || StringUtils.isBlank(tokReqMsgCtx.getTokenBinding().getBindingReference()))) {
                 if (OAuth2ServiceComponentHolder.getJwtRenewWithoutRevokeAllowedGrantTypes()
