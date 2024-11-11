@@ -146,6 +146,7 @@ public class OAuthServerConfiguration {
     private String oauthTokenGeneratorClassName;
     private OAuthIssuer oauthTokenGenerator;
     private String oauthIdentityTokenGeneratorClassName;
+    private String oauthDefaultAccessTokenGeneratorType = null;
     private String clientIdValidationRegex = "[a-zA-Z0-9_]{15,30}";
     private String persistAccessTokenAlias;
     private String retainOldAccessTokens;
@@ -2238,8 +2239,14 @@ public class OAuthServerConfiguration {
 
         OMElement tokenIssuerClassConfigElem = oauthConfigElem
                 .getFirstChildWithName(getQNameWithIdentityNS(ConfigElements.IDENTITY_OAUTH_TOKEN_GENERATOR));
+        OMElement tokenIssuerTypeConfigElem = oauthConfigElem
+                .getFirstChildWithName(getQNameWithIdentityNS(ConfigElements.TOKEN_TYPE));
         if (tokenIssuerClassConfigElem != null && !"".equals(tokenIssuerClassConfigElem.getText().trim())) {
             oauthIdentityTokenGeneratorClassName = tokenIssuerClassConfigElem.getText().trim();
+            if (tokenIssuerTypeConfigElem != null && StringUtils.isNotEmpty(tokenIssuerTypeConfigElem.getText())) {
+                oauthDefaultAccessTokenGeneratorType = tokenIssuerTypeConfigElem.getText();
+            }
+
             if (log.isDebugEnabled()) {
                 log.debug("Identity OAuth token generator is set to : " + oauthIdentityTokenGeneratorClassName);
             }
@@ -2474,6 +2481,14 @@ public class OAuthServerConfiguration {
                     tokenTypeName = tokenTypeNameElement.getText();
                 }
 
+                OMElement tokenTypeElement = supportedTokenTypeElement
+                        .getFirstChildWithName(getQNameWithIdentityNS(ConfigElements.TOKEN_TYPE));
+
+                String accessTokenType = null;
+                if (tokenTypeElement != null) {
+                    accessTokenType = tokenTypeElement.getText();
+                }
+
                 OMElement tokenTypeImplClassElement = supportedTokenTypeElement
                         .getFirstChildWithName(getQNameWithIdentityNS(ConfigElements.TOKEN_TYPE_IMPL_CLASS));
 
@@ -2495,6 +2510,7 @@ public class OAuthServerConfiguration {
                     if (StringUtils.isNotEmpty(tokenTypeImplClass)) {
                         tokenIssuerDO.setTokenType(tokenTypeName);
                         tokenIssuerDO.setTokenImplClass(tokenTypeImplClass);
+                        tokenIssuerDO.setAccessTokenType(accessTokenType);
                     }
 
                     if (StringUtils.isNotEmpty(persistAccessTokenAlias)) {
@@ -2526,9 +2542,12 @@ public class OAuthServerConfiguration {
 
             // If a server level <IdentityOAuthTokenGenerator> is defined, that will be our first choice for the
             // "Default" token type issuer implementation.
-            supportedTokenIssuers.put(DEFAULT_TOKEN_TYPE,
-                    new TokenIssuerDO(DEFAULT_TOKEN_TYPE, oauthIdentityTokenGeneratorClassName,
-                            isPersistTokenAlias));
+            TokenIssuerDO tokenIssuerDO = new TokenIssuerDO(DEFAULT_TOKEN_TYPE, oauthIdentityTokenGeneratorClassName,
+                    isPersistTokenAlias);
+            if (StringUtils.isNotEmpty(oauthDefaultAccessTokenGeneratorType)) {
+                tokenIssuerDO.setAccessTokenType(oauthDefaultAccessTokenGeneratorType);
+            }
+            supportedTokenIssuers.put(DEFAULT_TOKEN_TYPE, tokenIssuerDO);
         }
 
         // Adding default token types if not added in the configuration.
@@ -3705,6 +3724,7 @@ public class OAuthServerConfiguration {
         private static final String SUPPORTED_TOKEN_TYPES = "SupportedTokenTypes";
         private static final String SUPPORTED_TOKEN_TYPE = "SupportedTokenType";
         private static final String TOKEN_TYPE_NAME = "TokenTypeName";
+        private static final String TOKEN_TYPE = "TokenType";
 
         private static final String USER_CONSENT_ENABLED_GRANT_TYPES = "UserConsentEnabledGrantTypes";
         private static final String USER_CONSENT_ENABLED_GRANT_TYPE = "UserConsentEnabledGrantType";
