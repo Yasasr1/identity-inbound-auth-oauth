@@ -603,10 +603,7 @@ public class AccessTokenIssuer {
         if (isValidScope) {
             // Add authorized internal scopes to the request for sending in the response.
             addAuthorizedInternalScopes(tokReqMsgCtx, tokReqMsgCtx.getAuthorizedInternalScopes());
-            if (!REFRESH_TOKEN.equals(grantType) ||
-                    ArrayUtils.isEmpty(tokReqMsgCtx.getOauth2AccessTokenReqDTO().getScope())) {
-                addAllowedScopes(tokReqMsgCtx, requestedAllowedScopes.toArray(new String[0]));
-            }
+            addAllowedScopes(tokReqMsgCtx, requestedAllowedScopes.toArray(new String[0]));
             if (LoggerUtils.isDiagnosticLogsEnabled()) {
                 Map<String, Object> params = new HashMap<>();
                 params.put("clientId", tokenReqDTO.getClientId());
@@ -806,12 +803,20 @@ public class AccessTokenIssuer {
         tokReqMsgCtx.setScope(scopes);
 
     }
+
     private void addAllowedScopes(OAuthTokenReqMessageContext tokReqMsgCtx, String[] allowedScopes) {
 
         String[] scopes = tokReqMsgCtx.getScope();
-        String[] scopesToReturn = (String[]) ArrayUtils.addAll(scopes, allowedScopes);
-        tokReqMsgCtx.setScope(scopesToReturn);
-
+        List<String> scopeList = new ArrayList<>(Arrays.asList(scopes));
+        List<String> scopesWithAllowedScopes = new ArrayList<>(Arrays.asList(scopes));
+        for (String scope : allowedScopes) {
+            if (!scopeList.contains(scope)) {
+                // Add the allowed scopes only if it is not already in the scope list.
+                // This is handled due to the possibility of adding allowed scopes in grant handlers.
+                scopesWithAllowedScopes.add(scope);
+            }
+        }
+        tokReqMsgCtx.setScope(scopesWithAllowedScopes.toArray(new String[0]));
     }
 
     private void removeInternalScopes(OAuthTokenReqMessageContext tokReqMsgCtx) {
