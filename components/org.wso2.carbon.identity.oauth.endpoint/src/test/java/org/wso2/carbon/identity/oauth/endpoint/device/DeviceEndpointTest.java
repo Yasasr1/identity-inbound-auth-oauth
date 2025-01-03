@@ -59,6 +59,7 @@ import org.wso2.carbon.utils.CarbonUtils;
 
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Enumeration;
 import java.util.List;
 
 import javax.servlet.http.HttpServletRequest;
@@ -226,6 +227,17 @@ public class DeviceEndpointTest extends TestOAuthEndpointBase {
         when(deviceFlowDAO.checkClientIdExist(anyString())).thenReturn(status);
         PowerMockito.when(deviceEndpoint, "getValidationObject", httpServletRequest)
                 .thenReturn(oAuthClientAuthnContext);
+        when(httpServletRequest.getParameterNames()).thenReturn(new Enumeration<String>() {
+            @Override
+            public boolean hasMoreElements() {
+                return false;
+            }
+
+            @Override
+            public String nextElement() {
+                return null;
+            }
+        });
         response = deviceEndpoint.authorize(httpServletRequest, new MultivaluedHashMap<String, String>(),
                 httpServletResponse);
         Assert.assertEquals(expectedStatus, response.getStatus());
