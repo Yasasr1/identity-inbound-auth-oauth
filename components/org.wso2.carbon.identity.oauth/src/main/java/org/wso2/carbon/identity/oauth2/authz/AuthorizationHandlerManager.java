@@ -25,6 +25,7 @@ import org.apache.commons.logging.LogFactory;
 import org.wso2.carbon.identity.application.authentication.framework.exception.UserIdNotFoundException;
 import org.wso2.carbon.identity.application.common.IdentityApplicationManagementException;
 import org.wso2.carbon.identity.application.common.model.ServiceProvider;
+import org.wso2.carbon.identity.base.IdentityConstants;
 import org.wso2.carbon.identity.central.log.mgt.utils.LoggerUtils;
 import org.wso2.carbon.identity.core.util.IdentityUtil;
 import org.wso2.carbon.identity.oauth.IdentityOAuthAdminException;
@@ -333,6 +334,11 @@ public class AuthorizationHandlerManager {
 
         Set<String> validatedScopesSet = new HashSet<>(Arrays.asList(authzReqMsgCtx.getApprovedScope()));
         Set<String> requestedScopesSet = new HashSet<>(Arrays.asList(authzReqMsgCtx.getRequestedScopes()));
+        // Resolves internal #2984
+        String defaultScopes = IdentityUtil.getProperty(IdentityConstants.OAuth.DEFAULT_SCOPES);
+        if (StringUtils.isNotBlank(defaultScopes)) {
+            requestedScopesSet.addAll(Arrays.asList(defaultScopes.split(",")));
+        }
         return requestedScopesSet.containsAll(validatedScopesSet);
     }
 
