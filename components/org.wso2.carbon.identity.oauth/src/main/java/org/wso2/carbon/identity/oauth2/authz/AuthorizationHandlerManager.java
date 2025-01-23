@@ -284,6 +284,8 @@ public class AuthorizationHandlerManager {
                                          ResponseTypeHandler authzHandler) throws IdentityOAuth2Exception,
             IdentityOAuth2UnauthorizedScopeException {
 
+        // Get default requested scopes that are specified in the configuration.
+        addDefaultRequestedScopes(authzReqMsgCtx);
         // Get allowed scopes that are specified in the server level.
         List<String> requestedAllowedScopes = getAllowedScopesFromRequestedScopes(authzReqMsgCtx);
         // Remove the system level allowed scopes from requested scopes for further validation.
@@ -334,11 +336,6 @@ public class AuthorizationHandlerManager {
 
         Set<String> validatedScopesSet = new HashSet<>(Arrays.asList(authzReqMsgCtx.getApprovedScope()));
         Set<String> requestedScopesSet = new HashSet<>(Arrays.asList(authzReqMsgCtx.getRequestedScopes()));
-        // Resolves internal #2984
-        String defaultScopes = IdentityUtil.getProperty(IdentityConstants.OAuth.DEFAULT_SCOPES);
-        if (StringUtils.isNotBlank(defaultScopes)) {
-            requestedScopesSet.addAll(Arrays.asList(defaultScopes.split(",")));
-        }
         return requestedScopesSet.containsAll(validatedScopesSet);
     }
 
@@ -401,6 +398,26 @@ public class AuthorizationHandlerManager {
             }
         }
         authzReqMsgCtx.getAuthorizationReqDTO().setScopes(scopes.toArray(new String[0]));
+    }
+
+    /**
+     * Adds default requested scopes to the authorization request's scope list.
+     * The default scopes are retrieved from the configuration.
+     *
+     * @param authzReqMsgCtx The OAuth authorization request message context.
+     */
+    private void addDefaultRequestedScopes(OAuthAuthzReqMessageContext authzReqMsgCtx) {
+
+        String[] existingScopes = authzReqMsgCtx.getRequestedScopes();
+        String defaultScopes = IdentityUtil.getProperty(IdentityConstants.OAuth.DEFAULT_REQUESTED_SCOPES);
+        if (StringUtils.isNotBlank(defaultScopes)) {
+            List<String> combinedScopes = new ArrayList<>();
+            if (existingScopes != null) {
+                combinedScopes.addAll(Arrays.asList(existingScopes));
+            }
+            combinedScopes.addAll(Arrays.asList(defaultScopes.split(",")));
+            authzReqMsgCtx.setRequestedScopes(combinedScopes.toArray(new String[0]));
+        }
     }
 
     /**
