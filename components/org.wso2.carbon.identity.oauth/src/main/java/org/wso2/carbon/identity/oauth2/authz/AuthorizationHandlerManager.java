@@ -25,7 +25,6 @@ import org.apache.commons.logging.LogFactory;
 import org.wso2.carbon.identity.application.authentication.framework.exception.UserIdNotFoundException;
 import org.wso2.carbon.identity.application.common.IdentityApplicationManagementException;
 import org.wso2.carbon.identity.application.common.model.ServiceProvider;
-import org.wso2.carbon.identity.base.IdentityConstants;
 import org.wso2.carbon.identity.central.log.mgt.utils.LoggerUtils;
 import org.wso2.carbon.identity.core.util.IdentityUtil;
 import org.wso2.carbon.identity.oauth.IdentityOAuthAdminException;
@@ -408,14 +407,14 @@ public class AuthorizationHandlerManager {
      */
     private void addDefaultRequestedScopes(OAuthAuthzReqMessageContext authzReqMsgCtx) {
 
+        List<String> defaultScopes = OAuthServerConfiguration.getInstance().getDefaultRequestedScopes();
         String[] existingScopes = authzReqMsgCtx.getRequestedScopes();
-        String defaultScopes = IdentityUtil.getProperty(IdentityConstants.OAuth.DEFAULT_REQUESTED_SCOPES);
-        if (StringUtils.isNotBlank(defaultScopes)) {
+        if (defaultScopes != null && !defaultScopes.isEmpty()) {
             List<String> combinedScopes = new ArrayList<>();
             if (existingScopes != null) {
                 combinedScopes.addAll(Arrays.asList(existingScopes));
             }
-            combinedScopes.addAll(Arrays.asList(defaultScopes.split(",")));
+            combinedScopes.addAll(defaultScopes);
             authzReqMsgCtx.setRequestedScopes(combinedScopes.toArray(new String[0]));
         }
     }
