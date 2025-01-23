@@ -408,10 +408,11 @@ public class AuthorizationHandlerManager {
     private void addDefaultRequestedScopes(OAuthAuthzReqMessageContext authzReqMsgCtx) {
 
         List<String> defaultRequestedScopes = OAuthServerConfiguration.getInstance().getDefaultRequestedScopes();
-        String[] requestedScopes = authzReqMsgCtx.getRequestedScopes();
+        String[] requestedScopes = authzReqMsgCtx.getAuthorizationReqDTO().getScopes();
         if (ArrayUtils.isEmpty(requestedScopes) && defaultRequestedScopes != null &&
                 !defaultRequestedScopes.isEmpty()) {
             authzReqMsgCtx.setRequestedScopes(defaultRequestedScopes.toArray(new String[0]));
+            authzReqMsgCtx.getAuthorizationReqDTO().setScopes(defaultRequestedScopes.toArray(new String[0]));
         }
     }
 
