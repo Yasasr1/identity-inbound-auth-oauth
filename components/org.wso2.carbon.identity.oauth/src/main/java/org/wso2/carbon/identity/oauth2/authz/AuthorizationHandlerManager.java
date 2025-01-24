@@ -18,6 +18,7 @@
 
 package org.wso2.carbon.identity.oauth2.authz;
 
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
@@ -409,8 +410,7 @@ public class AuthorizationHandlerManager {
 
         List<String> defaultRequestedScopes = OAuthServerConfiguration.getInstance().getDefaultRequestedScopes();
         String[] requestedScopes = authzReqMsgCtx.getAuthorizationReqDTO().getScopes();
-        if (ArrayUtils.isEmpty(requestedScopes) && defaultRequestedScopes != null &&
-                !defaultRequestedScopes.isEmpty()) {
+        if (ArrayUtils.isEmpty(requestedScopes) && CollectionUtils.isNotEmpty(defaultRequestedScopes)) {
             authzReqMsgCtx.setRequestedScopes(defaultRequestedScopes.toArray(new String[0]));
             authzReqMsgCtx.getAuthorizationReqDTO().setScopes(defaultRequestedScopes.toArray(new String[0]));
         }
