@@ -157,6 +157,7 @@ public class EndpointUtil {
     private static IdpManager idpManager;
     private static final String ALLOW_ADDITIONAL_PARAMS_FROM_ERROR_URL = "OAuth.AllowAdditionalParamsFromErrorUrl";
     private static final String KEEP_OIDC_SCOPES_IN_CONSENT_URL = "OAuth.KeepOIDCScopesInConsentURL";
+    private static final String REMOVE_CLIENT_ID_FROM_ERROR_MESSAGE = "OAuth.RemoveClientIdFromErrorMsg";
     private static final String IDP_ENTITY_ID = "IdPEntityId";
 
     public static void setIdpManager(IdpManager idpManager) {
@@ -1291,6 +1292,11 @@ public class EndpointUtil {
                         "A valid OAuth application could not be found for the given client_id.",
                         "validate-oauth-client", null);
             }
+
+            if (Boolean.parseBoolean(IdentityUtil.getProperty(REMOVE_CLIENT_ID_FROM_ERROR_MESSAGE))) {
+                throw new InvalidApplicationClientException("Client credentials are invalid.");
+            }
+
             throw new InvalidApplicationClientException("A valid OAuth client could not be found for client_id: " +
                     Encode.forHtml(consumerKey));
         }
