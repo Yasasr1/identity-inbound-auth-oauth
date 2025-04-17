@@ -18,10 +18,6 @@
 
 package org.wso2.carbon.identity.oauth2.token.handlers.grant.saml;
 
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Objects;
-import java.util.stream.Collectors;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections.MapUtils;
@@ -105,11 +101,15 @@ import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 /**
  * This implements SAML 2.0 Bearer Assertion Profile for OAuth 2.0 -
@@ -122,14 +122,13 @@ public class SAML2BearerGrantHandler extends AbstractAuthorizationGrantHandler {
     private static final Log log = LogFactory.getLog(SAML2BearerGrantHandler.class);
     private static final String SAMLSSO_AUTHENTICATOR = "samlsso";
     private static final String SAML2SSO_AUTHENTICATOR_NAME = "SAMLSSOAuthenticator";
+    private final String[] registeredClaimNames = new String[]{"iss", "sub", "aud", "exp", "nbf", "iat", "jti"};
 
     public static final String SECURITY_SAML_SIGN_KEY_STORE_LOCATION = "Security.SAMLSignKeyStore.Location";
     public static final String SECURITY_SAML_SIGN_KEY_STORE_TYPE = "Security.SAMLSignKeyStore.Type";
     public static final String SECURITY_SAML_SIGN_KEY_STORE_PASSWORD = "Security.SAMLSignKeyStore.Password";
     public static final String SECURITY_SAML_SIGN_KEY_STORE_KEY_ALIAS = "Security.SAMLSignKeyStore.KeyAlias";
     public static final String SECURITY_SAML_SIGN_KEY_STORE_KEY_PASSWORD = "Security.SAMLSignKeyStore.KeyPassword";
-
-    private final String[] registeredClaimNames = new String[]{"iss", "sub", "aud", "exp", "nbf", "iat", "jti"};
 
     SAMLSignatureProfileValidator profileValidator = null;
 
@@ -1284,14 +1283,20 @@ public class SAML2BearerGrantHandler extends AbstractAuthorizationGrantHandler {
                 .getIdentityProviderName());
 
         Map<String, Object> attributeMap = getAttributeMap(assertion);
-        Map<String, String> customClaimMap = getCustomClaims(attributeMap);
-        if (MapUtils.isNotEmpty(customClaimMap)) {
+        if (MapUtils.isNotEmpty(attributeMap)) {
+            Map<String, String> customClaimMap = getCustomClaims(attributeMap);
             user.setUserAttributes(FrameworkUtils.buildClaimMappings(customClaimMap));
         }
 
         tokReqMsgCtx.setAuthorizedUser(user);
     }
 
+    /**
+     * To extract the attributes from the SAML assertion.
+     *
+     * @param assertion SAML assertion.
+     * @return attributes map.
+     */
     private static Map<String, Object> getAttributeMap(Assertion assertion) {
 
         Map<String, Object> attributeMap = new HashMap<>();

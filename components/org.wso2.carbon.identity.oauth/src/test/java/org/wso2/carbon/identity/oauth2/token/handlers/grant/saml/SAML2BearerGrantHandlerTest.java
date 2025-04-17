@@ -40,6 +40,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import org.wso2.carbon.base.CarbonBaseConstants;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatedUser;
+import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkUtils;
 import org.wso2.carbon.identity.application.common.IdentityApplicationManagementException;
 import org.wso2.carbon.identity.application.common.model.Claim;
 import org.wso2.carbon.identity.application.common.model.ClaimMapping;
@@ -110,10 +111,11 @@ import static org.testng.Assert.fail;
  * tests for SAML2BearerGrantHandler
  */
 @PowerMockIgnore({"javax.net.*", "javax.xml.*", "org.w3c.*", "org.xml.*"})
-@PrepareForTest({IdentityUtil.class, IdentityTenantUtil.class, IdentityProviderManager.class, MultitenantUtils.class,
-        IdentityApplicationManagementUtil.class, OAuthServerConfiguration.class, SSOServiceProviderConfigManager.class,
-        SAML2BearerGrantHandler.class, OAuthComponentServiceHolder.class, OAuth2ServiceComponentHolder.class,
-        OAuth2Util.class, IdentityPersistenceManager.class, SignatureValidator.class, UnmarshallUtils.class})
+@PrepareForTest({FrameworkUtils.class, IdentityUtil.class, IdentityTenantUtil.class, IdentityProviderManager.class,
+        MultitenantUtils.class, IdentityApplicationManagementUtil.class, OAuthServerConfiguration.class,
+        SSOServiceProviderConfigManager.class, SAML2BearerGrantHandler.class, OAuthComponentServiceHolder.class,
+        OAuth2ServiceComponentHolder.class, OAuth2Util.class, IdentityPersistenceManager.class,
+        SignatureValidator.class, UnmarshallUtils.class})
 @WithCarbonHome
 public class SAML2BearerGrantHandlerTest extends PowerMockIdentityBaseTest {
 
@@ -165,6 +167,7 @@ public class SAML2BearerGrantHandlerTest extends PowerMockIdentityBaseTest {
         mockStatic(OAuthServerConfiguration.class);
         mockStatic(IdentityUtil.class);
         mockStatic(UnmarshallUtils.class);
+        mockStatic(FrameworkUtils.class);
         when(OAuthServerConfiguration.getInstance()).thenReturn(oAuthServerConfiguration);
         when(oAuthServerConfiguration.getIdentityOauthTokenIssuer()).thenReturn(oauthIssuer);
         when(oAuthServerConfiguration.getPersistenceProcessor()).thenReturn(persistenceProcessor);
@@ -200,6 +203,7 @@ public class SAML2BearerGrantHandlerTest extends PowerMockIdentityBaseTest {
         when(userStoreManager.isExistingUser(anyString())).thenReturn(true);
         when(oAuthServerConfiguration.getSaml2BearerTokenUserType()).thenReturn(userType);
         when(IdentityUtil.extractDomainFromName(anyString())).thenReturn(TestConstants.USERSTORE_DOMAIN);
+        when(FrameworkUtils.getMultiAttributeSeparator()).thenReturn(",,,");
         assertTrue(saml2BearerGrantHandler.validateGrant(tokReqMsgCtx));
 
         Assertion savedAsserion = (Assertion) tokReqMsgCtx.getProperty(OAuthConstants.OAUTH_SAML2_ASSERTION);
