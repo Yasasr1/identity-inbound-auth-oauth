@@ -203,7 +203,7 @@ public class SAML2BearerGrantHandlerTest extends PowerMockIdentityBaseTest {
         when(userStoreManager.isExistingUser(anyString())).thenReturn(true);
         when(oAuthServerConfiguration.getSaml2BearerTokenUserType()).thenReturn(userType);
         when(IdentityUtil.extractDomainFromName(anyString())).thenReturn(TestConstants.USERSTORE_DOMAIN);
-        when(FrameworkUtils.getMultiAttributeSeparator()).thenReturn(",,,");
+        when(FrameworkUtils.getMultiAttributeSeparator()).thenReturn(",");
         assertTrue(saml2BearerGrantHandler.validateGrant(tokReqMsgCtx));
 
         Assertion savedAsserion = (Assertion) tokReqMsgCtx.getProperty(OAuthConstants.OAUTH_SAML2_ASSERTION);
