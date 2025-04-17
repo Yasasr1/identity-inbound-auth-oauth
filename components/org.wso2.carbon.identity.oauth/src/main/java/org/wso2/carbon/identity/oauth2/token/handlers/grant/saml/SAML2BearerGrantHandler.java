@@ -1347,7 +1347,6 @@ public class SAML2BearerGrantHandler extends AbstractAuthorizationGrantHandler {
                 } else {
                     customClaimMap.put(entry.getKey(), value.toString());
                 }
-
             }
         }
         return customClaimMap;
