@@ -1313,7 +1313,7 @@ public class SAML2BearerGrantHandler extends AbstractAuthorizationGrantHandler {
     }
 
     /**
-     * To get the custom claims map using the custom claims of JWT
+     * To get the custom claims map using the custom claims of JWT.
      *
      * @param customClaims Relevant custom claims
      * @return custom claims.
