@@ -1309,7 +1309,6 @@ public class SAML2BearerGrantHandler extends AbstractAuthorizationGrantHandler {
                 attributeMap.put(attribute.getName(), values);
             }
         }
-
         return attributeMap;
     }
 
