@@ -309,8 +309,6 @@ public class AuthorizationCodeDAOImpl extends AbstractOAuthDAO implements Author
                 log.debug("Changing state of authorization code  to: " + newState);
             }
         }
-        boolean tokenUpdateSuccessful;
-        String authCodeStoreTable = OAuthConstants.AUTHORIZATION_CODE_STORE_TABLE;
         Connection connection = IdentityDatabaseUtil.getDBConnection();
         PreparedStatement prepStmt = null;
         try {
@@ -319,19 +317,16 @@ public class AuthorizationCodeDAOImpl extends AbstractOAuthDAO implements Author
             prepStmt.setString(2, getHashingPersistenceProcessor().getProcessedAuthzCode(authzCode));
             prepStmt.execute();
             IdentityDatabaseUtil.commitTransaction(connection);
-            tokenUpdateSuccessful = true;
         } catch (SQLException e) {
             IdentityDatabaseUtil.rollbackTransaction(connection);
             throw new IdentityOAuth2Exception("Error occurred while updating the state of Authorization Code : " +
-                    authzCode.toString(), e);
+                    authzCode, e);
         } finally {
             IdentityDatabaseUtil.closeAllConnections(connection, null, prepStmt);
         }
-        if (tokenUpdateSuccessful) {
-            //If the code state is updated to inactive or expired request object which is persisted against the code
-            // should be updated/removed.
-            OAuth2TokenUtil.postRevokeCode(authzCode, newState, null, null);
-        }
+        //If the code state is updated to inactive or expired request object which is persisted against the code
+        // should be updated/removed.
+        OAuth2TokenUtil.postRevokeCode(authzCode, newState, null, authzCode);
     }
 
     @Override
