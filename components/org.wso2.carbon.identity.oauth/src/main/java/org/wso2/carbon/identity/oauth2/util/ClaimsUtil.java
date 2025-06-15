@@ -252,7 +252,7 @@ public class ClaimsUtil {
                 mappedAppClaims.put(oidcToLocalClaimMapping.getKey(), value);
                 if (log.isDebugEnabled() &&
                         IdentityUtil.isTokenLoggable(IdentityConstants.IdentityTokens.USER_CLAIMS)) {
-                    log.debug("Mapped claim: key -  " + oidcToLocalClaimMapping.getKey() + " value -" + value);
+                    log.debug("Mapped claim: key -  " + oidcToLocalClaimMapping.getKey() + " value - " + value);
                 }
             }
         }
