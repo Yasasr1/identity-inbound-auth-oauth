@@ -50,6 +50,7 @@ import org.wso2.carbon.identity.oauth2.dto.OAuth2AccessTokenReqDTO;
 import org.wso2.carbon.identity.oauth2.dto.OAuth2AccessTokenRespDTO;
 import org.wso2.carbon.identity.oauth2.internal.OAuth2ServiceComponentHolder;
 import org.wso2.carbon.identity.oauth2.model.AccessTokenDO;
+import org.wso2.carbon.identity.oauth2.model.TokenIssuerDO;
 import org.wso2.carbon.identity.oauth2.token.OAuthTokenReqMessageContext;
 import org.wso2.carbon.identity.oauth2.token.OauthTokenIssuer;
 import org.wso2.carbon.identity.oauth2.util.OAuth2Util;
@@ -157,9 +158,9 @@ public abstract class AbstractAuthorizationGrantHandler implements Authorization
             OAuthAppDO oAuthAppDO = (OAuthAppDO) tokReqMsgCtx.getProperty(OAUTH_APP);
             String tokenIssuerName = (oAuthAppDO != null) ? oAuthAppDO.getTokenType() : null;
             String tokenType = null;
+
             if (tokenIssuerName != null) {
-                tokenType = OAuthServerConfiguration.getInstance().getSupportedTokenIssuers()
-                        .get(tokenIssuerName).getAccessTokenType();
+                tokenType = getTokenTypeFromTokenIssuer(tokenIssuerName);
             }
 
             /*
@@ -1104,9 +1105,9 @@ public abstract class AbstractAuthorizationGrantHandler implements Authorization
         OAuthAppDO oAuthAppDO = (OAuthAppDO) tokReqMsgCtx.getProperty(OAUTH_APP);
         String tokenIssuerName = (oAuthAppDO != null) ? oAuthAppDO.getTokenType() : null;
         String tokenType = null;
+
         if (tokenIssuerName != null) {
-            tokenType = OAuthServerConfiguration.getInstance().getSupportedTokenIssuers()
-                    .get(tokenIssuerName).getAccessTokenType();
+            tokenType = getTokenTypeFromTokenIssuer(tokenIssuerName);
         }
 
         if (JWT.equalsIgnoreCase(tokenIssuerName) || JWT.equalsIgnoreCase(tokenType)) {
@@ -1120,6 +1121,31 @@ public abstract class AbstractAuthorizationGrantHandler implements Authorization
             }
         }
         return getExistingTokenBindingReference(tokReqMsgCtx);
+    }
+
+    /**
+     * Get token type from token issuer name by ignoring case sensitivity.
+     *
+     * @param tokenIssuerName Token issuer name.
+     * @return Token type.
+     */
+    private String getTokenTypeFromTokenIssuer(String tokenIssuerName) {
+
+        TokenIssuerDO tokenIssuerDO = null;
+        String tokenType = StringUtils.EMPTY;
+
+        tokenIssuerDO = OAuthServerConfiguration.getInstance().getSupportedTokenIssuers().entrySet()
+                .stream()
+                .filter(entry -> entry.getKey().equalsIgnoreCase(tokenIssuerName))
+                .map(Map.Entry::getValue)
+                .findFirst()
+                .orElse(null);
+
+        if (tokenIssuerDO != null) {
+            tokenType = tokenIssuerDO.getAccessTokenType();
+        }
+
+        return tokenType;
     }
 
     /**
