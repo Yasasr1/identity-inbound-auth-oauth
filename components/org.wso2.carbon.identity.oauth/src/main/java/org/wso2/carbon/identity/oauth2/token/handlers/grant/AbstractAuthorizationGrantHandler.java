@@ -160,7 +160,6 @@ public abstract class AbstractAuthorizationGrantHandler implements Authorization
             String tokenType = null;
 
             if (tokenIssuerName != null) {
-
                 tokenType = getTokenTypeFromTokenIssuer(tokenIssuerName);
             }
 
