@@ -37,6 +37,7 @@ import org.wso2.carbon.identity.event.event.Event;
 import org.wso2.carbon.identity.event.handler.AbstractEventHandler;
 import org.wso2.carbon.identity.oauth.OAuthUtil;
 import org.wso2.carbon.identity.oauth.internal.OAuthComponentServiceHolder;
+import org.wso2.carbon.identity.oauth.tokenprocessor.OAuth2RevocationProcessor;
 import org.wso2.carbon.identity.oauth2.internal.OAuth2ServiceComponentHolder;
 import org.wso2.carbon.identity.role.mgt.core.GroupBasicInfo;
 import org.wso2.carbon.identity.role.mgt.core.IdentityRoleManagementException;
@@ -219,7 +220,10 @@ public class IdentityOauthEventHandler extends AbstractEventHandler {
             if (log.isDebugEnabled()) {
                 log.debug(String.format("User %s is locked. Hence revoking user's access tokens.", userName));
             }
-            OAuthUtil.revokeTokens(userName, userStoreManager);
+            for (OAuth2RevocationProcessor revocationProcessor :
+                    OAuth2ServiceComponentHolder.getInstance().getRevocationProcessors()) {
+                revocationProcessor.revokeTokens(userName, userStoreManager);
+            }
         }
     }
 
@@ -246,7 +250,10 @@ public class IdentityOauthEventHandler extends AbstractEventHandler {
             if (log.isDebugEnabled()) {
                 log.debug(String.format("User %s is disabled. Hence revoking user's access tokens.", userName));
             }
-            OAuthUtil.revokeTokens(userName, userStoreManager);
+            for (OAuth2RevocationProcessor revocationProcessor :
+                    OAuth2ServiceComponentHolder.getInstance().getRevocationProcessors()) {
+                revocationProcessor.revokeTokens(userName, userStoreManager);
+            }
         }
     }
 
@@ -267,7 +274,10 @@ public class IdentityOauthEventHandler extends AbstractEventHandler {
                 for (String userId : userIDList) {
                     try {
                         userName = FrameworkUtils.resolveUserNameFromUserId(userStoreManager, userId);
-                        OAuthUtil.revokeTokens(userName, userStoreManager);
+                        for (OAuth2RevocationProcessor revocationProcessor :
+                                OAuth2ServiceComponentHolder.getInstance().getRevocationProcessors()) {
+                            revocationProcessor.revokeTokens(userName, userStoreManager);
+                        }
                         OAuthUtil.removeUserClaimsFromCache(userName, userStoreManager);
                         OAuth2ServiceComponentHolder.getUserSessionManagementService()
                                 .terminateSessionsByUserId(userId);

@@ -42,7 +42,6 @@ import org.wso2.carbon.identity.oauth2.authz.OAuthAuthzReqMessageContext;
 import org.wso2.carbon.identity.oauth2.authz.validators.DefaultResponseTypeRequestValidator;
 import org.wso2.carbon.identity.oauth2.authz.validators.ResponseTypeRequestValidator;
 import org.wso2.carbon.identity.oauth2.bean.OAuthClientAuthnContext;
-import org.wso2.carbon.identity.oauth2.dao.OAuthTokenPersistenceFactory;
 import org.wso2.carbon.identity.oauth2.dto.OAuth2AccessTokenReqDTO;
 import org.wso2.carbon.identity.oauth2.dto.OAuth2AccessTokenRespDTO;
 import org.wso2.carbon.identity.oauth2.dto.OAuth2AuthorizeReqDTO;
@@ -616,8 +615,8 @@ public class OAuth2Service extends AbstractAdmin {
                             OAuth2Util.buildScopeString(refreshTokenDO.getScope()));
                     OAuthUtil.clearOAuthCache(revokeRequestDTO.getConsumerKey(), refreshTokenDO.getAuthorizedUser());
                     OAuthUtil.clearOAuthCache(refreshTokenDO.getAccessToken());
-                    OAuthTokenPersistenceFactory.getInstance().getAccessTokenDAO()
-                            .revokeAccessTokens(new String[] { refreshTokenDO.getAccessToken() });
+                    OAuth2ServiceComponentHolder.getInstance().getDefaultRevocationProcessor()
+                            .revokeRefreshToken(revokeRequestDTO, refreshTokenDO);
                     addRevokeResponseHeaders(revokeResponseDTO,
                             refreshTokenDO.getAccessToken(),
                             revokeRequestDTO.getToken(),
@@ -663,8 +662,8 @@ public class OAuth2Service extends AbstractAdmin {
                         String userId = accessTokenDO.getAuthzUser().getUserId();
                         synchronized ((revokeRequestDTO.getConsumerKey() + ":" + userId + ":" + scope + ":"
                                 + tokenBindingReference).intern()) {
-                            OAuthTokenPersistenceFactory.getInstance().getAccessTokenDAO()
-                                    .revokeAccessTokens(new String[]{accessTokenDO.getAccessToken()});
+                            OAuth2ServiceComponentHolder.getInstance().getDefaultRevocationProcessor()
+                                    .revokeAccessToken(revokeRequestDTO, accessTokenDO);
                         }
                         addRevokeResponseHeaders(revokeResponseDTO,
                                 revokeRequestDTO.getToken(),

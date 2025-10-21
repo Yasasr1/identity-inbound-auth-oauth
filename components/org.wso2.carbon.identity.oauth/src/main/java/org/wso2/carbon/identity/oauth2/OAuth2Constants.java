@@ -33,4 +33,5 @@ public class OAuth2Constants {
 
     }
     public static final String GROUPS = "groups";
+    public static final String PREV_ACCESS_TOKEN = "previousAccessToken";
 }
