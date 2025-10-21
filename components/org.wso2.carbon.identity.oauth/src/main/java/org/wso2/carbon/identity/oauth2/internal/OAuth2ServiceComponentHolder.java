@@ -27,7 +27,11 @@ import org.wso2.carbon.identity.event.services.IdentityEventService;
 import org.wso2.carbon.identity.handler.event.account.lock.service.AccountLockService;
 import org.wso2.carbon.identity.oauth.OAuthAdminServiceImpl;
 import org.wso2.carbon.identity.oauth.dto.ScopeDTO;
+import org.wso2.carbon.identity.oauth.tokenprocessor.DefaultOAuth2RevocationProcessor;
+import org.wso2.carbon.identity.oauth.tokenprocessor.DefaultRefreshTokenGrantProcessor;
 import org.wso2.carbon.identity.oauth.tokenprocessor.DefaultTokenProvider;
+import org.wso2.carbon.identity.oauth.tokenprocessor.OAuth2RevocationProcessor;
+import org.wso2.carbon.identity.oauth.tokenprocessor.RefreshTokenGrantProcessor;
 import org.wso2.carbon.identity.oauth.tokenprocessor.TokenProvider;
 import org.wso2.carbon.identity.oauth2.authz.validators.ResponseTypeRequestValidator;
 import org.wso2.carbon.identity.oauth2.bean.Scope;
@@ -81,6 +85,9 @@ public class OAuth2ServiceComponentHolder {
     private static List<String> jwtRenewWithoutRevokeAllowedGrantTypes = new ArrayList<>();
     private static AccountLockService accountLockService;
     private TokenProvider tokenProvider;
+    private RefreshTokenGrantProcessor refreshTokenGrantProcessor;
+    private OAuth2RevocationProcessor defaultRevocationProcessor;
+    private List<OAuth2RevocationProcessor> revocationProcessors = new ArrayList<>();
 
     private OAuth2ServiceComponentHolder() {
 
@@ -512,5 +519,71 @@ public class OAuth2ServiceComponentHolder {
     public void setTokenProvider(TokenProvider tokenProvider) {
 
         this.tokenProvider = tokenProvider;
+    }
+
+    /**
+     * Get Refresh Token Grant Processor.
+     *
+     * @return RefreshTokenGrantProcessor  Refresh Token Grant Processor.
+     */
+    public RefreshTokenGrantProcessor getRefreshTokenGrantProcessor() {
+
+        if (refreshTokenGrantProcessor == null) {
+            refreshTokenGrantProcessor = new DefaultRefreshTokenGrantProcessor();
+        }
+        return refreshTokenGrantProcessor;
+    }
+
+    /**
+     * Set Refresh Token Grant Processor.
+     *
+     * @param refreshTokenGrantProcessor Refresh Token Grant Processor.
+     */
+    public void setRefreshTokenGrantProcessor(RefreshTokenGrantProcessor refreshTokenGrantProcessor) {
+
+        this.refreshTokenGrantProcessor = refreshTokenGrantProcessor;
+    }
+
+    /**
+     * Get Revocation Processor.
+     *
+     * @return Revocation Processor.
+     */
+    public OAuth2RevocationProcessor getDefaultRevocationProcessor() {
+
+        if (defaultRevocationProcessor == null) {
+            defaultRevocationProcessor = new DefaultOAuth2RevocationProcessor();
+        }
+        return defaultRevocationProcessor;
+    }
+
+    /**
+     * Retrieves the list of registered {@link OAuth2RevocationProcessor} instances.
+     *
+     * @return A list of revocation processors currently registered in the system.
+     */
+    public List<OAuth2RevocationProcessor> getRevocationProcessors() {
+
+        return revocationProcessors;
+    }
+
+    /**
+     * Registers a new {@link OAuth2RevocationProcessor} to the list of revocation processors.
+     *
+     * @param oAuth2RevocationProcessor The revocation processor to be added.
+     */
+    public void addRevocationProcessor(OAuth2RevocationProcessor oAuth2RevocationProcessor) {
+
+        this.revocationProcessors.add(oAuth2RevocationProcessor);
+    }
+
+    /**
+     * Unregisters the given {@link OAuth2RevocationProcessor} from the list of revocation processors.
+     *
+     * @param oAuth2RevocationProcessor The revocation processor to be removed.
+     */
+    public void removeRevocationProcessor(OAuth2RevocationProcessor oAuth2RevocationProcessor) {
+
+        this.revocationProcessors.remove(oAuth2RevocationProcessor);
     }
 }
