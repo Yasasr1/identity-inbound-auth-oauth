@@ -107,6 +107,7 @@ import org.wso2.carbon.identity.oauth2.IdentityOAuth2ClientException;
 import org.wso2.carbon.identity.oauth2.IdentityOAuth2Exception;
 import org.wso2.carbon.identity.oauth2.IdentityOAuth2ScopeException;
 import org.wso2.carbon.identity.oauth2.IdentityOAuth2ScopeServerException;
+import org.wso2.carbon.identity.oauth2.OAuth2Constants;
 import org.wso2.carbon.identity.oauth2.authz.OAuthAuthzReqMessageContext;
 import org.wso2.carbon.identity.oauth2.bean.OAuthClientAuthnContext;
 import org.wso2.carbon.identity.oauth2.bean.Scope;
@@ -4758,5 +4759,33 @@ public class OAuth2Util {
         AbstractUserStoreManager userStoreManager = (AbstractUserStoreManager)
                 realmService.getTenantUserRealm(tenantId).getUserStoreManager();
         return userStoreManager.isExistingUser(MultitenantUtils.getTenantAwareUsername(userName));
+    }
+
+    /**
+     * Check if access token persistence is enabled.
+     *
+     * @return True if access token persistence is enabled.
+     */
+    public static boolean isAccessTokenPersistenceEnabled() {
+
+        if (IdentityUtil.getProperty(OAuth2Constants.OAUTH_ACCESS_TOKEN_PERSISTENCE_ENABLE) != null) {
+            return Boolean.parseBoolean
+                    (IdentityUtil.getProperty(OAuth2Constants.OAUTH_ACCESS_TOKEN_PERSISTENCE_ENABLE));
+        }
+        return OAuth2Constants.DEFAULT_ACCESS_TOKEN_PERSIST_ENABLED;
+    }
+
+    /**
+     * Check if revoked access token list is enabled.
+     *
+     * @return True if revoked access token list is enabled.
+     */
+    public static boolean isKeepRevokedAccessTokenEnabled() {
+
+        if (IdentityUtil.getProperty(OAuth2Constants.OAUTH_KEEP_REVOKED_ACCESS_TOKEN_LIST) != null) {
+            return Boolean.parseBoolean
+                    (IdentityUtil.getProperty(OAuth2Constants.OAUTH_KEEP_REVOKED_ACCESS_TOKEN_LIST));
+        }
+        return OAuth2Constants.DEFAULT_KEEP_REVOKED_ACCESS_TOKEN_LIST;
     }
 }
