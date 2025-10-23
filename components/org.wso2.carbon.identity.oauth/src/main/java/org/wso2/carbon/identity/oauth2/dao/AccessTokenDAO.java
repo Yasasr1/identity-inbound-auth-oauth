@@ -1,8 +1,8 @@
 /*
  *
- *   Copyright (c) 2017, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
+ *   Copyright (c) 2017-2025, WSO2 LLC. (http://www.wso2.com).
  *
- *   WSO2 Inc. licenses this file to you under the Apache License,
+ *   WSO2 LLC. licenses this file to you under the Apache License,
  *   Version 2.0 (the "License"); you may not use this file except
  *   in compliance with the License.
  *   You may obtain a copy of the License at
@@ -103,10 +103,20 @@ public interface AccessTokenDAO {
 
     Set<String> getAccessTokensByUser(AuthenticatedUser authenticatedUser) throws IdentityOAuth2Exception;
 
+    /**
+     * @deprecated Use {@link #getAccessTokensByUserForOpenidScope(AuthenticatedUser, boolean)} instead.
+     */
+    @Deprecated
     default Set<AccessTokenDO> getAccessTokensByUserForOpenidScope(AuthenticatedUser authenticatedUser)
             throws IdentityOAuth2Exception {
 
         return null;
+    }
+
+    default Set<AccessTokenDO> getAccessTokensByUserForOpenidScope(AuthenticatedUser authenticatedUser,
+            boolean includeExpiredAccessTokensWithActiveRefreshToken) throws IdentityOAuth2Exception {
+
+        return getAccessTokensByUserForOpenidScope(authenticatedUser);
     }
 
     Set<String> getActiveTokensByConsumerKey(String consumerKey) throws IdentityOAuth2Exception;
