@@ -264,8 +264,12 @@ public class RefreshTokenDAOImpl extends AbstractOAuthDAO implements RefreshToke
         prepStmt.setString(2, isUsernameCaseSensitive ? tenantAwareUsername : tenantAwareUsername.toLowerCase());
         prepStmt.setInt(3, tenantId);
         prepStmt.setString(4, userDomain);
-        prepStmt.setString(5, hashedScope);
-        prepStmt.setString(6, authenticatedIDP);
+        if (hashedScope == null) {
+            prepStmt.setString(5, authenticatedIDP);
+        } else {
+            prepStmt.setString(5, hashedScope);
+            prepStmt.setString(6, authenticatedIDP);
+        }
         return prepStmt;
     }
 
