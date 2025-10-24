@@ -2314,4 +2314,69 @@ public class OAuth2UtilTest extends PowerMockIdentityBaseTest {
                 "e7:cb:80:1b:bd";
         assertEquals(thumbPrint, Base64URL.encode(rsa256Thumbprint.replaceAll(":", "")).toString());
     }
+
+    @Test
+    public void testIsNonPersistentTokenEnabled() throws Exception {
+
+        String consumerKey = "testConsumerKey";
+        OAuthAppDO appDO = new OAuthAppDO();
+        appDO.setTokenType("JWT");
+
+        // Mock isAccessTokenPersistenceEnabled to return false (so method proceeds to check appDO)
+        PowerMockito.mockStatic(OAuth2Util.class, Mockito.CALLS_REAL_METHODS);
+        PowerMockito.doReturn(false).when(OAuth2Util.class, "isAccessTokenPersistenceEnabled");
+
+        // Mock getAppInformationByClientId to return appDO with tokenType "JWT"
+        PowerMockito.doReturn(appDO).when(OAuth2Util.class, "getAppInformationByClientId", consumerKey);
+
+        // Should return true since tokenType is "JWT"
+        Assert.assertTrue(OAuth2Util.isNonPersistentTokenEnabled(consumerKey));
+
+        // Change tokenType to something else
+        appDO.setTokenType("DEFAULT");
+        PowerMockito.doReturn(appDO).when(OAuth2Util.class, "getAppInformationByClientId", consumerKey);
+
+        // Should return false since tokenType is not "JWT"
+        Assert.assertFalse(OAuth2Util.isNonPersistentTokenEnabled(consumerKey));
+
+        // Mock isAccessTokenPersistenceEnabled to return true (should short-circuit and return false)
+        PowerMockito.doReturn(true).when(OAuth2Util.class, "isAccessTokenPersistenceEnabled");
+        Assert.assertFalse(OAuth2Util.isNonPersistentTokenEnabled(consumerKey));
+    }
+
+    @Test
+    public void testIsAccessTokenPersistenceEnabled() {
+
+        mockStatic(IdentityUtil.class);
+
+        // Property set to "true"
+        when(IdentityUtil.getProperty("OAuth.TokenPersistence.PersistAccessToken")).thenReturn("true");
+        assertTrue(OAuth2Util.isAccessTokenPersistenceEnabled());
+
+        // Property set to "false"
+        when(IdentityUtil.getProperty("OAuth.TokenPersistence.PersistAccessToken")).thenReturn("false");
+        assertFalse(OAuth2Util.isAccessTokenPersistenceEnabled());
+
+        // Property not set (null) - should return default (true)
+        when(IdentityUtil.getProperty("OAuth.TokenPersistence.PersistAccessToken")).thenReturn(null);
+        assertTrue(OAuth2Util.isAccessTokenPersistenceEnabled());
+    }
+
+    @Test
+    public void testIsKeepRevokedAccessTokenEnabled() {
+
+        mockStatic(IdentityUtil.class);
+
+        // Property set to "true"
+        when(IdentityUtil.getProperty("OAuth.TokenPersistence.KeepRevokedAccessTokens")).thenReturn("true");
+        assertTrue(OAuth2Util.isKeepRevokedAccessTokenEnabled());
+
+        // Property set to "false"
+        when(IdentityUtil.getProperty("OAuth.TokenPersistence.KeepRevokedAccessTokens")).thenReturn("false");
+        assertFalse(OAuth2Util.isKeepRevokedAccessTokenEnabled());
+
+        // Property not set (null) - should return default (false)
+        when(IdentityUtil.getProperty("OAuth.TokenPersistence.KeepRevokedAccessTokens")).thenReturn(null);
+        assertTrue(OAuth2Util.isKeepRevokedAccessTokenEnabled());
+    }
 }

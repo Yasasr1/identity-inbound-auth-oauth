@@ -48,6 +48,9 @@ public class RefreshTokenValidationDataDO {
     private Timestamp accessTokenIssuedTime;
 
     private long accessTokenValidityInMillis;
+    private boolean isWithNotPersistedAT;
+    private String refreshToken;
+    private boolean isConsentedToken;
 
     public String getAccessToken() {
         return accessToken;
@@ -137,5 +140,35 @@ public class RefreshTokenValidationDataDO {
 
     public void setAccessTokenValidityInMillis(long accessTokenValidityInMillis) {
         this.accessTokenValidityInMillis = accessTokenValidityInMillis;
+    }
+
+    public boolean isWithNotPersistedAT() {
+
+        return isWithNotPersistedAT;
+    }
+
+    public void setWithNotPersistedAT(boolean withNotPersistedAT) {
+
+        isWithNotPersistedAT = withNotPersistedAT;
+    }
+
+    public String getRefreshToken() {
+
+        return refreshToken;
+    }
+
+    public void setRefreshToken(String refreshToken) {
+
+        this.refreshToken = refreshToken;
+    }
+
+    public boolean isConsentedToken() {
+
+        return isConsentedToken;
+    }
+
+    public void setConsentedToken(boolean consentedToken) {
+
+        isConsentedToken = consentedToken;
     }
 }
