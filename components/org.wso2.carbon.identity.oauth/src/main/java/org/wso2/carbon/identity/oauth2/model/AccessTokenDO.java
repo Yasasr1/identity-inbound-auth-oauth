@@ -69,6 +69,7 @@ public class AccessTokenDO extends CacheEntry {
     private String tokenType;
 
     private TokenBinding tokenBinding;
+    private boolean isNotPersisted;
 
     public AccessTokenDO(String consumerKey, AuthenticatedUser authzUser, String[] scope, Timestamp issuedTime,
                          Timestamp refreshTokenIssuedTime, long validityPeriodInMillis,
@@ -136,6 +137,7 @@ public class AccessTokenDO extends CacheEntry {
         newTokenDO.setGrantType(tokenDO.getGrantType());
         newTokenDO.setTokenBinding(tokenDO.getTokenBinding());
         newTokenDO.setIsConsentedToken(tokenDO.isConsentedToken());
+        newTokenDO.setNotPersisted(tokenDO.isNotPersisted());
 
         return newTokenDO;
     }
@@ -302,5 +304,15 @@ public class AccessTokenDO extends CacheEntry {
     public void setTokenBinding(TokenBinding tokenBinding) {
 
         this.tokenBinding = tokenBinding;
+    }
+
+    public boolean isNotPersisted() {
+
+        return isNotPersisted;
+    }
+
+    public void setNotPersisted(boolean notPersisted) {
+
+        isNotPersisted = notPersisted;
     }
 }
