@@ -2914,20 +2914,24 @@ public class OAuth2Util {
             Certificate certificate = getCertificate(tenantDomain, tenantId);
 
             if (isJWTX5tHexifyingRequired()) {
+                // Handle x5t.
                 if (IdentityUtil.getProperty(JWT_X5T_ENABLED) == null) {
                     headerBuilder.x509CertThumbprint(new Base64URL(getThumbPrint(tenantDomain, tenantId)));
-                } else if (OAuth2Util.isX5tEnabled()) {
+                } else if (Boolean.parseBoolean(IdentityUtil.getProperty(JWT_X5T_ENABLED))) {
                     /* When x5t enable is set, set the hexified SHA-1 for x5t header parameter. */
                     headerBuilder.x509CertThumbprint(new Base64URL(getThumbPrintWithPrevAlgorithm(certificate, true)));
                 }
+                // Handle x5t#s256.
                 if (OAuth2Util.isX5tS256Enabled()) {
                     String certThumbPrint = OAuth2Util.getThumbPrint(certificate, true);
                     headerBuilder.x509CertSHA256Thumbprint(new Base64URL(certThumbPrint));
                 }
             } else {
+                // Handle x5t.
                 if (OAuth2Util.isX5tEnabled()) {
                     headerBuilder.x509CertThumbprint(new Base64URL(getThumbPrintWithPrevAlgorithm(certificate, false)));
                 }
+                // Handle x5t#s256.
                 if (OAuth2Util.isX5tS256Enabled()) {
                     String certThumbPrint = OAuth2Util.getThumbPrint(certificate, false);
                     headerBuilder.x509CertSHA256Thumbprint(new Base64URL(certThumbPrint));
