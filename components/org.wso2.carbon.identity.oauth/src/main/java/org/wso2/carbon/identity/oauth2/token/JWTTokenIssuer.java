@@ -66,6 +66,7 @@ import java.util.UUID;
 
 import static org.wso2.carbon.identity.oauth.common.OAuthConstants.RENEW_TOKEN_WITHOUT_REVOKING_EXISTING_ENABLE_CONFIG;
 import static org.wso2.carbon.identity.oauth.common.OAuthConstants.REQUEST_BINDING_TYPE;
+import static org.wso2.carbon.identity.oauth2.util.OAuth2Util.JWT_X5T_ENABLED;
 import static org.wso2.carbon.identity.oauth2.util.OAuth2Util.getPrivateKey;
 
 /**
@@ -349,21 +350,29 @@ public class JWTTokenIssuer extends OauthTokenIssuerImpl {
 
             Certificate certificate = OAuth2Util.getCertificate(tenantDomain, tenantId);
             if (OAuth2Util.isJWTX5tHexifyingRequired()) {
-                if (OAuth2Util.isX5tS256Enabled()) {
-                    certThumbPrint = OAuth2Util.getThumbPrint(certificate, true);
-                    headerBuilder.x509CertSHA256Thumbprint(new Base64URL(certThumbPrint));
-                } else {
-                    // Setting sha256 hash for x5t is incorrect, but keep for backward compatibility.
+                if (IdentityUtil.getProperty(JWT_X5T_ENABLED) == null) {
+                    /* When x5t enable is not set, default to incorrect behaviour of setting hexified SHA-256
+                       thumbprint for x5t header parameter. */
                     certThumbPrint = OAuth2Util.getThumbPrint(tenantDomain, tenantId);
                     headerBuilder.x509CertThumbprint(new Base64URL(certThumbPrint));
+                } else if (OAuth2Util.isX5tEnabled()) {
+                    /* When x5t enable is set, set the hexified SHA-1 for x5t header parameter. */
+                    certThumbPrint = OAuth2Util.getThumbPrintWithPrevAlgorithm(certificate, true);
+                    headerBuilder.x509CertThumbprint(new Base64URL(certThumbPrint));
+                }
+                if (OAuth2Util.isX5tS256Enabled()) {
+                    /* When x5t#s256 enable is set, set the hexified SHA-256 for x5t#s256 header parameter. */
+                    certThumbPrint = OAuth2Util.getThumbPrint(certificate, true);
+                    headerBuilder.x509CertSHA256Thumbprint(new Base64URL(certThumbPrint));
                 }
             } else {
+                if (OAuth2Util.isX5tEnabled()) {
+                    certThumbPrint = OAuth2Util.getThumbPrintWithPrevAlgorithm(certificate, false);
+                    headerBuilder.x509CertThumbprint(new Base64URL(certThumbPrint));
+                }
                 if (OAuth2Util.isX5tS256Enabled()) {
                     certThumbPrint = OAuth2Util.getThumbPrint(certificate, false);
                     headerBuilder.x509CertSHA256Thumbprint(new Base64URL(certThumbPrint));
-                } else {
-                    certThumbPrint = OAuth2Util.getThumbPrintWithPrevAlgorithm(certificate, false);
-                    headerBuilder.x509CertThumbprint(new Base64URL(certThumbPrint));
                 }
             }
             headerBuilder.keyID(OAuth2Util.getKID(OAuth2Util.getCertificate(tenantDomain, tenantId),

@@ -331,6 +331,7 @@ public class OAuth2Util {
     private static final String ALLOW_WEAK_RSA_SIGNER_KEY = "allow_weak_rsa_signer_key";
     public static final String JWT_X5T_HEXIFY_REQUIRED = "OAuth.JWTX5tHexifyingRequired";
     public static final String JWT_X5T_S256_ENABLED = "OAuth.JWTX5tS256Enabled";
+    public static final String JWT_X5T_ENABLED = "OAuth.JWTX5tEnabled";
 
     private static Map<Integer, Certificate> publicCerts = new ConcurrentHashMap<Integer, Certificate>();
     private static Map<Integer, Key> privateKeys = new ConcurrentHashMap<Integer, Key>();
@@ -2913,19 +2914,23 @@ public class OAuth2Util {
             Certificate certificate = getCertificate(tenantDomain, tenantId);
 
             if (isJWTX5tHexifyingRequired()) {
+                if (IdentityUtil.getProperty(JWT_X5T_ENABLED) == null) {
+                    headerBuilder.x509CertThumbprint(new Base64URL(getThumbPrint(tenantDomain, tenantId)));
+                } else if (OAuth2Util.isX5tEnabled()) {
+                    /* When x5t enable is set, set the hexified SHA-1 for x5t header parameter. */
+                    headerBuilder.x509CertThumbprint(new Base64URL(getThumbPrintWithPrevAlgorithm(certificate, true)));
+                }
                 if (OAuth2Util.isX5tS256Enabled()) {
                     String certThumbPrint = OAuth2Util.getThumbPrint(certificate, true);
                     headerBuilder.x509CertSHA256Thumbprint(new Base64URL(certThumbPrint));
-                } else {
-                    // Setting sha256 hash for x5t is incorrect, but keep for backward compatibility.
-                    headerBuilder.x509CertThumbprint(new Base64URL(getThumbPrint(tenantDomain, tenantId)));
                 }
             } else {
+                if (OAuth2Util.isX5tEnabled()) {
+                    headerBuilder.x509CertThumbprint(new Base64URL(getThumbPrintWithPrevAlgorithm(certificate, false)));
+                }
                 if (OAuth2Util.isX5tS256Enabled()) {
                     String certThumbPrint = OAuth2Util.getThumbPrint(certificate, false);
                     headerBuilder.x509CertSHA256Thumbprint(new Base64URL(certThumbPrint));
-                } else {
-                    headerBuilder.x509CertThumbprint(new Base64URL(getThumbPrintWithPrevAlgorithm(certificate, false)));
                 }
             }
             SignedJWT signedJWT = new SignedJWT(headerBuilder.build(), jwtClaimsSet);
@@ -4783,6 +4788,15 @@ public class OAuth2Util {
     public static boolean isX5tS256Enabled() {
 
         return Boolean.parseBoolean(IdentityUtil.getProperty(JWT_X5T_S256_ENABLED));
+    }
+
+    public static boolean isX5tEnabled() {
+
+        // Default behaviour is x5t is enabled.
+        if (IdentityUtil.getProperty(JWT_X5T_ENABLED) == null) {
+            return true;
+        }
+        return Boolean.parseBoolean(IdentityUtil.getProperty(JWT_X5T_ENABLED));
     }
 
     public static boolean isExistingUser(String userName, String tenantDomain) throws UserStoreException {
