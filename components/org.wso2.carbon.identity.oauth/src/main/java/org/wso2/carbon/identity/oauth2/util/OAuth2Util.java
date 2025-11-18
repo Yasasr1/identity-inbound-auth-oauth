@@ -3071,7 +3071,8 @@ public class OAuth2Util {
      * @param requireHexifying True, if thumbprint needs to be hexified before encoding. It should not be hexified
      * @throws IdentityOAuth2Exception When failed to obtain the thumbprint.
      */
-    public static String getThumbPrint(Certificate certificate, boolean requireHexifying) throws IdentityOAuth2Exception {
+    public static String getThumbPrint(Certificate certificate, boolean requireHexifying)
+            throws IdentityOAuth2Exception {
 
         return getThumbPrintWithAlgorithm(certificate, KID_HASHING_ALGORITHM, requireHexifying);
     }
