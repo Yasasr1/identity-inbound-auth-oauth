@@ -346,17 +346,30 @@ public class JWTTokenIssuer extends OauthTokenIssuerImpl {
             JWSSigner signer = OAuth2Util.createJWSSigner((RSAPrivateKey) privateKey);
             JWSHeader.Builder headerBuilder = new JWSHeader.Builder((JWSAlgorithm) signatureAlgorithm);
             String certThumbPrint;
+
+            Certificate certificate = OAuth2Util.getCertificate(tenantDomain, tenantId);
             if (OAuth2Util.isJWTX5tHexifyingRequired()) {
-                certThumbPrint = OAuth2Util.getThumbPrint(tenantDomain, tenantId);
+                if (OAuth2Util.isX5tS256Enabled()) {
+                    certThumbPrint = OAuth2Util.getThumbPrint(certificate, true);
+                    headerBuilder.x509CertSHA256Thumbprint(new Base64URL(certThumbPrint));
+                } else {
+                    // Setting sha256 hash for x5t is incorrect, but keep for backward compatibility.
+                    certThumbPrint = OAuth2Util.getThumbPrint(tenantDomain, tenantId);
+                    headerBuilder.x509CertThumbprint(new Base64URL(certThumbPrint));
+                }
             } else {
-                Certificate certificate = OAuth2Util.getCertificate(tenantDomain, tenantId);
-                certThumbPrint = OAuth2Util.getThumbPrintWithPrevAlgorithm(certificate, false);
+                if (OAuth2Util.isX5tS256Enabled()) {
+                    certThumbPrint = OAuth2Util.getThumbPrint(certificate, false);
+                    headerBuilder.x509CertSHA256Thumbprint(new Base64URL(certThumbPrint));
+                } else {
+                    certThumbPrint = OAuth2Util.getThumbPrintWithPrevAlgorithm(certificate, false);
+                    headerBuilder.x509CertThumbprint(new Base64URL(certThumbPrint));
+                }
             }
             headerBuilder.keyID(OAuth2Util.getKID(OAuth2Util.getCertificate(tenantDomain, tenantId),
                     (JWSAlgorithm) signatureAlgorithm, tenantDomain));
             // Set the required "typ" header "at+jwt" for access tokens issued by the issuer
             headerBuilder.type(new JOSEObjectType(DEFAULT_TYP_HEADER_VALUE));
-            headerBuilder.x509CertThumbprint(new Base64URL(certThumbPrint));
             SignedJWT signedJWT = new SignedJWT(headerBuilder.build(), jwtClaimsSet);
             signedJWT.sign(signer);
             return signedJWT.serialize();
