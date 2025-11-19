@@ -187,9 +187,7 @@ public class JwksEndpoint {
                 String certThumbPrint = OAuth2Util.getThumbPrintWithPrevAlgorithm(certificate, true);
                 jwk.x509CertThumbprint(new Base64URL(certThumbPrint));
             }
-
             jwk.x509CertSHA256Thumbprint(new Base64URL(OAuth2Util.getThumbPrint(certificate, alias)));
-
         }
         return jwk;
     }
