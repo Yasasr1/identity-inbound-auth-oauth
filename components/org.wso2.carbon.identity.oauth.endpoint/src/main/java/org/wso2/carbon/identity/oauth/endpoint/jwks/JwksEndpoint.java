@@ -58,7 +58,6 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 
 import static org.wso2.carbon.identity.oauth2.util.OAuth2Util.JWT_X5T_ENABLED;
-import static org.wso2.carbon.identity.oauth2.util.OAuth2Util.JWT_X5T_S256_ENABLED;
 
 /**
  * Rest implementation for JWKS endpoint.
