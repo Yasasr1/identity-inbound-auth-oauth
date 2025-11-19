@@ -57,6 +57,9 @@ import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 
+import static org.wso2.carbon.identity.oauth2.util.OAuth2Util.JWT_X5T_ENABLED;
+import static org.wso2.carbon.identity.oauth2.util.OAuth2Util.JWT_X5T_S256_ENABLED;
+
 /**
  * Rest implementation for JWKS endpoint.
  */
@@ -174,9 +177,17 @@ public class JwksEndpoint {
             jwk.x509CertChain(encodedCertList);
         }
         if (!Boolean.parseBoolean(IdentityUtil.getProperty(JWKS_IS_THUMBPRINT_HEXIFY_REQUIRED))) {
+            if (Boolean.parseBoolean(IdentityUtil.getProperty(JWT_X5T_ENABLED))) {
+                String certThumbPrint = OAuth2Util.getThumbPrintWithPrevAlgorithm(certificate, false);
+                jwk.x509CertThumbprint(new Base64URL(certThumbPrint));
+            }
             JWK parsedJWK = JWK.parse(certificate);
             jwk.x509CertSHA256Thumbprint(parsedJWK.getX509CertSHA256Thumbprint());
         } else {
+            if (Boolean.parseBoolean(IdentityUtil.getProperty(JWT_X5T_ENABLED))) {
+                String certThumbPrint = OAuth2Util.getThumbPrintWithPrevAlgorithm(certificate, true);
+                jwk.x509CertThumbprint(new Base64URL(certThumbPrint));
+            }
             jwk.x509CertSHA256Thumbprint(new Base64URL(OAuth2Util.getThumbPrint(certificate, alias)));
         }
         return jwk;
