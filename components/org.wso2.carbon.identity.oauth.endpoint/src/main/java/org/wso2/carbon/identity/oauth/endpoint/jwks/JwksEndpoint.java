@@ -181,22 +181,14 @@ public class JwksEndpoint {
                 String certThumbPrint = OAuth2Util.getThumbPrintWithPrevAlgorithm(certificate, false);
                 jwk.x509CertThumbprint(new Base64URL(certThumbPrint));
             }
-            // Skip adding SHA-256 thumbprint if explicitly configured to skip x5t#s256 property.
-            if (IdentityUtil.getProperty(JWT_X5T_S256_ENABLED) == null ||
-                    Boolean.parseBoolean(IdentityUtil.getProperty(JWT_X5T_S256_ENABLED))) {
-                JWK parsedJWK = JWK.parse(certificate);
-                jwk.x509CertSHA256Thumbprint(parsedJWK.getX509CertSHA256Thumbprint());
-            }
+            JWK parsedJWK = JWK.parse(certificate);
+            jwk.x509CertSHA256Thumbprint(parsedJWK.getX509CertSHA256Thumbprint());
         } else {
             if (Boolean.parseBoolean(IdentityUtil.getProperty(JWT_X5T_ENABLED))) {
                 String certThumbPrint = OAuth2Util.getThumbPrintWithPrevAlgorithm(certificate, true);
                 jwk.x509CertThumbprint(new Base64URL(certThumbPrint));
             }
-            // Skip adding SHA-256 thumbprint if explicitly configured to skip x5t#s256 property.
-            if (IdentityUtil.getProperty(JWT_X5T_S256_ENABLED) == null ||
-                    Boolean.parseBoolean(IdentityUtil.getProperty(JWT_X5T_S256_ENABLED))) {
-                jwk.x509CertSHA256Thumbprint(new Base64URL(OAuth2Util.getThumbPrint(certificate, alias)));
-            }
+            jwk.x509CertSHA256Thumbprint(new Base64URL(OAuth2Util.getThumbPrint(certificate, alias)));
         }
         return jwk;
     }
