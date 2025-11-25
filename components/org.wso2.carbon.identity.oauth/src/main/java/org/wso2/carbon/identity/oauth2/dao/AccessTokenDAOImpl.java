@@ -2007,7 +2007,6 @@ public class AccessTokenDAOImpl extends AbstractOAuthDAO implements AccessTokenD
         }
         boolean tokenUpdateSuccessful;
         Connection connection = IdentityDatabaseUtil.getDBConnection(true);
-        IdentityOAuth2Exception postRefreshEventException = null;
         try {
             if (OAuth2ServiceComponentHolder.isConsentedTokenColumnEnabled() && !accessTokenDO.isConsentedToken()) {
                 // Check whether the previous token is issued for a consent required grant or not.
