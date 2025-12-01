@@ -250,7 +250,9 @@ public class DefaultOIDCClaimsCallbackHandler implements CustomClaimsCallbackHan
         List<String> essentialClaims = getEssentialClaimUris(accessToken);
         if (CollectionUtils.isNotEmpty(essentialClaims)) {
             for (String key : essentialClaims) {
-                essentialClaimMap.put(key, claims.get(key));
+                if (claims.get(key) != null) {
+                    essentialClaimMap.put(key, claims.get(key));
+                }
             }
         }
         return essentialClaimMap;
@@ -258,13 +260,15 @@ public class DefaultOIDCClaimsCallbackHandler implements CustomClaimsCallbackHan
 
     private List<String> getEssentialClaimUris(String accessToken) {
 
-        AuthorizationGrantCacheKey cacheKey = new AuthorizationGrantCacheKey(accessToken);
-        AuthorizationGrantCacheEntry cacheEntry = AuthorizationGrantCache.getInstance()
-                .getValueFromCacheByToken(cacheKey);
+        if (accessToken != null) {
+            AuthorizationGrantCacheKey cacheKey = new AuthorizationGrantCacheKey(accessToken);
+            AuthorizationGrantCacheEntry cacheEntry = AuthorizationGrantCache.getInstance()
+                    .getValueFromCacheByToken(cacheKey);
 
-        if (cacheEntry != null) {
-            if (StringUtils.isNotEmpty(cacheEntry.getEssentialClaims())) {
-                return OAuth2Util.getEssentialClaims(cacheEntry.getEssentialClaims(), ID_TOKEN);
+            if (cacheEntry != null) {
+                if (StringUtils.isNotEmpty(cacheEntry.getEssentialClaims())) {
+                    return OAuth2Util.getEssentialClaims(cacheEntry.getEssentialClaims(), ID_TOKEN);
+                }
             }
         }
 
