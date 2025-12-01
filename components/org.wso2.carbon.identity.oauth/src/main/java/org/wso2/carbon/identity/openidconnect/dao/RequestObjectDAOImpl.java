@@ -449,7 +449,7 @@ public class RequestObjectDAOImpl implements RequestObjectDAO {
             String errorMsg = "Can not update token id for code id: " + codeId;
             throw new IdentityOAuth2Exception(errorMsg, e);
         } catch (IdentityOAuthAdminException e) {
-            String errorMsg = "Can not delete existing entry for the same token id" + tokenId;
+            String errorMsg = "Can not delete existing entry for the same token id: " + tokenId;
             throw new IdentityOAuth2Exception(errorMsg, e);
         } finally {
             IdentityDatabaseUtil.closeAllConnections(connection, null, ps);
