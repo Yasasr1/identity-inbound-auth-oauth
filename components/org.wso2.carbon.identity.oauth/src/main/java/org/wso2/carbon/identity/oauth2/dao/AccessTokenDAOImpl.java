@@ -2024,9 +2024,6 @@ public class AccessTokenDAOImpl extends AbstractOAuthDAO implements AccessTokenD
                 updateTokenIdIfAutzCodeGrantType(oldAccessTokenId, accessTokenDO.getTokenId(), connection);
             }
 
-            if (isTokenCleanupFeatureEnabled && oldAccessTokenId != null) {
-                oldTokenCleanupObject.cleanupTokenByTokenId(oldAccessTokenId, connection);
-            }
             IdentityDatabaseUtil.commitTransaction(connection);
             tokenUpdateSuccessful = true;
         } catch (SQLException e) {
@@ -2036,13 +2033,29 @@ public class AccessTokenDAOImpl extends AbstractOAuthDAO implements AccessTokenD
         } finally {
             IdentityDatabaseUtil.closeConnection(connection);
         }
+
         if (tokenUpdateSuccessful) {
             // Post refresh access token event
             if (StringUtils.equals(grantType, OAuthConstants.GrantTypes.CLIENT_CREDENTIALS) ||
                     StringUtils.equals(grantType, OAuthConstants.GrantTypes.PASSWORD)) {
-                OAuth2TokenUtil.postRefreshAccessToken(oldAccessTokenId, accessTokenDO.getTokenId(), tokenState, false);
+                OAuth2TokenUtil.postRefreshAccessToken(oldAccessTokenId, accessTokenDO.getTokenId(), tokenState,
+                        false);
             } else {
-                OAuth2TokenUtil.postRefreshAccessToken(oldAccessTokenId, accessTokenDO.getTokenId(), tokenState, true);
+                OAuth2TokenUtil.postRefreshAccessToken(oldAccessTokenId, accessTokenDO.getTokenId(), tokenState,
+                        true);
+            }
+
+            try {
+                connection = IdentityDatabaseUtil.getDBConnection(true);
+                if (isTokenCleanupFeatureEnabled && oldAccessTokenId != null) {
+                    oldTokenCleanupObject.cleanupTokenByTokenId(oldAccessTokenId, connection);
+                }
+                IdentityDatabaseUtil.commitTransaction(connection);
+            } catch (SQLException e) {
+                IdentityDatabaseUtil.rollbackTransaction(connection);
+                throw new IdentityOAuth2Exception("Error while cleaning up old access token", e);
+            } finally {
+                IdentityDatabaseUtil.closeConnection(connection);
             }
         }
     }
