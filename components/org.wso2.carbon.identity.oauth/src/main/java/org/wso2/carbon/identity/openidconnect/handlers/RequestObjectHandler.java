@@ -132,7 +132,7 @@ public class RequestObjectHandler extends AbstractEventHandler {
         if (StringUtils.isNotEmpty(tokenId) && OAuthConstants.AuthorizationCodeState.INACTIVE.equals(codeState)) {
             /*
              * This code block will be executed when the token is issued for authorization code.
-             * Therefore, we need to update the token id of request object reference identified by code id
+             * Therefore, we need to replace the request object reference identified by code id with token id
              * and code id will be removed from the entry.
              */
             OAuthTokenPersistenceFactory.getInstance().getRequestObjectDAO()
