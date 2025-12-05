@@ -33,9 +33,13 @@ public class OAuth2Constants {
 
     }
     public static final String GROUPS = "groups";
+    public static final String TOKEN_ID = "token_id";
+    public static final String IS_FEDERATED = "is_federated";
     public static final String PREV_ACCESS_TOKEN = "previousAccessToken";
     public static final boolean DEFAULT_ACCESS_TOKEN_PERSIST_ENABLED = true;
     public static final String OAUTH_ACCESS_TOKEN_PERSISTENCE_ENABLE = "OAuth.TokenPersistence.PersistAccessToken";
     public static final boolean DEFAULT_KEEP_REVOKED_ACCESS_TOKEN_LIST = true;
     public static final String OAUTH_KEEP_REVOKED_ACCESS_TOKEN_LIST = "OAuth.TokenPersistence.KeepRevokedAccessTokens";
+    public static final boolean DEFAULT_REFRESH_TOKEN_PERSIST_ENABLED = true;
+    public static final String OAUTH_REFRESH_TOKEN_PERSISTENCE_ENABLE = "OAuth.TokenPersistence.PersistRefreshToken";
 }

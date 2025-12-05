@@ -4850,6 +4850,46 @@ public class OAuth2Util {
     }
 
     /**
+     * Check if refresh token persistence is enabled.
+     *
+     * @return True if access token persistence is enabled.
+     */
+    public static boolean isRefreshTokenPersistenceEnabled() {
+
+        if (IdentityUtil.getProperty(OAuth2Constants.OAUTH_REFRESH_TOKEN_PERSISTENCE_ENABLE) != null) {
+            return Boolean.parseBoolean
+                    (IdentityUtil.getProperty(OAuth2Constants.OAUTH_REFRESH_TOKEN_PERSISTENCE_ENABLE));
+        }
+        return OAuth2Constants.DEFAULT_REFRESH_TOKEN_PERSIST_ENABLED;
+    }
+
+    /**
+     * Get the X509 certificate of the Identity Provider.
+     *
+     * @param idp Identity Provider.
+     * @return X509Certificate.
+     * @throws IdentityOAuth2Exception IdentityOAuth2Exception.
+     */
+    public static X509Certificate resolverSignerCertificate(IdentityProvider idp)
+            throws IdentityOAuth2Exception {
+
+        X509Certificate x509Certificate;
+        String tenantDomain = PrivilegedCarbonContext.getThreadLocalCarbonContext().getTenantDomain();
+        if (StringUtils.isEmpty(tenantDomain)) {
+            tenantDomain = MultitenantConstants.SUPER_TENANT_DOMAIN_NAME;
+        }
+
+        try {
+            x509Certificate = (X509Certificate) IdentityApplicationManagementUtil
+                    .decodeCertificate(idp.getCertificate());
+        } catch (CertificateException e) {
+            throw new IdentityOAuth2Exception("Error occurred while decoding public certificate of Identity Provider "
+                    + idp.getIdentityProviderName() + " for tenant domain " + tenantDomain, e);
+        }
+        return x509Certificate;
+    }
+
+    /**
      * Check if the token type is non-persistent token type.
      *
      * @param consumerKey Consumer key of the application.

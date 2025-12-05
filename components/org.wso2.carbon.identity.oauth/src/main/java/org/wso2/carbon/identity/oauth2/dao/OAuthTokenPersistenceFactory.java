@@ -20,6 +20,7 @@
 
 package org.wso2.carbon.identity.oauth2.dao;
 
+import org.wso2.carbon.identity.oauth2.util.OAuth2Util;
 import org.wso2.carbon.identity.openidconnect.dao.CacheBackedScopeClaimMappingDAOImpl;
 import org.wso2.carbon.identity.openidconnect.dao.RequestObjectDAO;
 import org.wso2.carbon.identity.openidconnect.dao.RequestObjectDAOImpl;
@@ -39,6 +40,8 @@ public class OAuthTokenPersistenceFactory {
     private ScopeClaimMappingDAO scopeClaimMappingDAO;
     private TokenBindingMgtDAO tokenBindingMgtDAO;
     private OAuthUserConsentedScopesDAO oauthUserConsentedScopesDAO;
+    private AccessTokenDAO nonPersistedTokenDAO;
+    private RevokedTokenPersistenceDAO revokedTokenPersistenceDAO;
 
     public OAuthTokenPersistenceFactory() {
 
@@ -50,6 +53,8 @@ public class OAuthTokenPersistenceFactory {
         this.scopeClaimMappingDAO = new CacheBackedScopeClaimMappingDAOImpl();
         this.tokenBindingMgtDAO = new TokenBindingMgtDAOImpl();
         this.oauthUserConsentedScopesDAO = new CacheBackedOAuthUserConsentedScopesDAOImpl();
+        this.nonPersistedTokenDAO = new NonPersistentAccessTokenDAOImpl();
+        this.revokedTokenPersistenceDAO = new RevokedTokenDAOImpl();
     }
 
     public static OAuthTokenPersistenceFactory getInstance() {
@@ -95,5 +100,18 @@ public class OAuthTokenPersistenceFactory {
     public OAuthUserConsentedScopesDAO getOAuthUserConsentedScopesDAO() {
 
         return oauthUserConsentedScopesDAO;
+    }
+
+    public RevokedTokenPersistenceDAO getRevokedTokenPersistenceDAO() {
+
+        return revokedTokenPersistenceDAO;
+    }
+
+    public AccessTokenDAO getAccessTokenDAOImpl(String consumerKey) {
+
+        if (OAuth2Util.isNonPersistentTokenEnabled(consumerKey)) {
+            return nonPersistedTokenDAO;
+        }
+        return tokenDAO;
     }
 }
