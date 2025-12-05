@@ -223,8 +223,6 @@ public class HybridPersistenceTokenProvider implements TokenProvider {
     public RefreshTokenValidationDataDO getVerifiedRefreshToken(String refreshToken, String consumerKey)
             throws IdentityOAuth2Exception {
 
-        // todo add npr from npr refresh token
-
         if (!TokenMgtUtil.isHybridPersistedToken(refreshToken)) {
             LOG.debug("Refresh token is not with non-persistence access token. " +
                     "Hence, finding from persisted access token table from database.");
