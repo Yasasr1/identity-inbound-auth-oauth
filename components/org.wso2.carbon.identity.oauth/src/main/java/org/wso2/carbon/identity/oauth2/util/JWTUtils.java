@@ -18,7 +18,11 @@
 
 package org.wso2.carbon.identity.oauth2.util;
 
+import com.nimbusds.jose.JOSEException;
+import com.nimbusds.jose.JWSVerifier;
+import com.nimbusds.jose.crypto.RSASSAVerifier;
 import com.nimbusds.jwt.JWTClaimsSet;
+import com.nimbusds.jwt.SignedJWT;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -33,6 +37,9 @@ import org.wso2.carbon.identity.oauth2.IdentityOAuth2Exception;
 import org.wso2.carbon.idp.mgt.IdentityProviderManagementException;
 import org.wso2.carbon.idp.mgt.IdentityProviderManager;
 
+import java.security.PublicKey;
+import java.security.cert.X509Certificate;
+import java.security.interfaces.RSAPublicKey;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -45,6 +52,8 @@ public class JWTUtils {
     private static final Log LOG = LogFactory.getLog(JWTUtils.class);
     private static final String DOT_SEPARATOR = ".";
     private static final String OIDC_IDP_ENTITY_ID = "IdPEntityId";
+    private static final String ALGO_PREFIX = "RS";
+    private static final String ALGO_PREFIX_PS = "PS";
 
     /**
      * Return true if the token identifier is JWT.
@@ -154,5 +163,62 @@ public class JWTUtils {
                 LOG.debug("Not Before Time(nbf) of Token was validated successfully.");
             }
         }
+    }
+
+    /**
+     * Verifies and retrieves the signature algorithm from the header of the given SignedJWT.
+     *
+     * @param signedJWT The SignedJWT from which to verify and retrieve the signature algorithm.
+     * @return The signature algorithm.
+     * @throws IdentityOAuth2Exception If the algorithm is null or empty in the token header.
+     */
+    public static String verifyAlgorithm(SignedJWT signedJWT) throws IdentityOAuth2Exception {
+
+        String alg = signedJWT.getHeader().getAlgorithm().getName();
+        if (StringUtils.isEmpty(alg)) {
+            throw new IdentityOAuth2Exception("Algorithm must not be null.");
+        }
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("Signature Algorithm found in the Token Header: " + alg);
+        }
+        return alg;
+    }
+
+    /**
+     * Verifies the signature of the given SignedJWT using the provided X.509 certificate and signature algorithm.
+     *
+     * @param signedJWT       The SignedJWT to verify.
+     * @param x509Certificate The X.509 certificate used for signature verification.
+     * @param alg             The signature algorithm.
+     * @return True if the signature is valid, false otherwise.
+     * @throws IdentityOAuth2Exception If an error occurs during signature verification.
+     * @throws JOSEException           If an error occurs in the JOSE library.
+     */
+    public static boolean verifySignature(SignedJWT signedJWT, X509Certificate x509Certificate, String alg)
+            throws IdentityOAuth2Exception, JOSEException {
+
+        JWSVerifier verifier = null;
+        if (alg.indexOf(ALGO_PREFIX) == 0 || alg.indexOf(ALGO_PREFIX_PS) == 0) {
+            // At this point 'x509Certificate' will never be null.
+            PublicKey publicKey = x509Certificate.getPublicKey();
+            if (publicKey instanceof RSAPublicKey) {
+                verifier = new RSASSAVerifier((RSAPublicKey) publicKey);
+            } else {
+                throw new IdentityOAuth2Exception("Public key is not an RSA public key.");
+            }
+        } else {
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Signature Algorithm not supported yet: " + alg);
+            }
+        }
+        if (verifier == null) {
+            throw new IdentityOAuth2Exception("Could not create a signature verifier for algorithm type: " + alg);
+        }
+        boolean isValid;
+        isValid = signedJWT.verify(verifier);
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("Signature verified: " + isValid);
+        }
+        return isValid;
     }
 }

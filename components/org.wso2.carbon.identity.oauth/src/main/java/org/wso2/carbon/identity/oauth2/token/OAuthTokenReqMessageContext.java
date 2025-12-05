@@ -53,6 +53,7 @@ public class OAuthTokenReqMessageContext {
     private TokenBinding tokenBinding;
 
     private boolean isConsentedToken;
+    private String tokenId;
 
     public OAuthTokenReqMessageContext(OAuth2AccessTokenReqDTO oauth2AccessTokenReqDTO) {
 
@@ -170,5 +171,15 @@ public class OAuthTokenReqMessageContext {
     public void setConsentedToken(boolean consentedToken) {
 
         isConsentedToken = consentedToken;
+    }
+
+    public String getTokenId() {
+
+        return tokenId;
+    }
+
+    public void setTokenId(String tokenId) {
+
+        this.tokenId = tokenId;
     }
 }
