@@ -67,6 +67,10 @@ public class OAuthTokenPersistenceFactory {
         return authorizationCodeDAO;
     }
 
+    /**
+     * @deprecated Use {@link #getAccessTokenDAOImpl(String)} instead.
+     */
+    @Deprecated
     public AccessTokenDAO getAccessTokenDAO() {
 
         return tokenDAO;
