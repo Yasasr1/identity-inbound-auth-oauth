@@ -455,7 +455,8 @@ public class OAuthApplicationMgtListener extends AbstractApplicationMgtListener 
             AppInfoCache appInfoCache = AppInfoCache.getInstance();
             for (String oauthKey : consumerKeys) {
                 accessTokenDOSet.addAll(OAuthTokenPersistenceFactory.getInstance()
-                        .getAccessTokenDAO().getActiveTokenSetWithTokenIdByConsumerKeyForOpenidScope(oauthKey));
+                        .getAccessTokenDAOImpl(oauthKey)
+                        .getActiveTokenSetWithTokenIdByConsumerKeyForOpenidScope(oauthKey));
                 authzCodeDOSet.addAll(OAuthTokenPersistenceFactory.getInstance()
                         .getAuthorizationCodeDAO().getAuthorizationCodeDOSetByConsumerKeyForOpenidScope(oauthKey));
                 // Remove client credential from AppInfoCache
