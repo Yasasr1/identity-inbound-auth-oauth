@@ -56,6 +56,7 @@ import org.wso2.carbon.identity.oauth2.OAuth2Service;
 import org.wso2.carbon.identity.oauth2.Oauth2ScopeConstants;
 import org.wso2.carbon.identity.oauth2.authz.handlers.ResponseTypeHandler;
 import org.wso2.carbon.identity.oauth2.dao.OAuthTokenPersistenceFactory;
+import org.wso2.carbon.identity.oauth2.dao.RefreshTokenDAOImpl;
 import org.wso2.carbon.identity.oauth2.internal.OAuth2ServiceComponentHolder;
 import org.wso2.carbon.identity.oauth2.model.AccessTokenDO;
 import org.wso2.carbon.identity.oauth2.token.bindings.TokenBinding;
@@ -66,6 +67,7 @@ import org.wso2.carbon.utils.multitenancy.MultitenantUtils;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Calendar;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -81,7 +83,9 @@ import static org.wso2.carbon.identity.oauth.Error.INVALID_OAUTH_CLIENT;
 import static org.wso2.carbon.identity.oauth.Error.INVALID_REQUEST;
 import static org.wso2.carbon.identity.oauth.OAuthUtil.handleError;
 import static org.wso2.carbon.identity.oauth.OAuthUtil.handleErrorWithExceptionType;
+import static org.wso2.carbon.identity.oauth.common.OAuthConstants.NonPersistenceConstants.ENTITY_ID_TYPE_CLIENT_ID;
 import static org.wso2.carbon.identity.oauth.common.OAuthConstants.OauthAppStates.APP_STATE_ACTIVE;
+import static org.wso2.carbon.identity.oauth.common.OAuthConstants.OauthAppStates.APP_STATE_DELETED;
 import static org.wso2.carbon.identity.oauth.common.OAuthConstants.TokenBindings.NONE;
 import static org.wso2.carbon.identity.oauth2.util.OAuth2Util.buildScopeString;
 import static org.wso2.carbon.identity.oauth2.util.OAuth2Util.getTenantId;
@@ -810,8 +814,13 @@ public class OAuthAdminServiceImpl {
             properties.setProperty(OAuthConstants.OAUTH_APP_NEW_STATE, newState);
             properties.setProperty(OAuthConstants.ACTION_PROPERTY_KEY, OAuthConstants.ACTION_REVOKE);
 
-            AppInfoCache.getInstance().clearCacheEntry(consumerKey);
             updateAppAndRevokeTokensAndAuthzCodes(consumerKey, properties);
+            handleNonPersistentTokenRevocation(consumerKey);
+            for (OAuthApplicationMgtListener oAuthApplicationMgtListener : OAuthComponentServiceHolder.getInstance()
+                    .getOAuthApplicationMgtListeners()) {
+                oAuthApplicationMgtListener.doPostUpdateConsumerApplicationState(consumerKey, properties);
+            }
+            AppInfoCache.getInstance().clearCacheEntry(consumerKey);
 
             if (LOG.isDebugEnabled()) {
                 LOG.debug("App state is updated to:" + newState + " in the AppInfoCache for OAuth App with " +
@@ -852,7 +861,6 @@ public class OAuthAdminServiceImpl {
         properties.setProperty(OAuthConstants.ACTION_PROPERTY_KEY, OAuthConstants.ACTION_REGENERATE);
         properties.setProperty(OAuthConstants.OAUTH_APP_NEW_STATE, APP_STATE_ACTIVE);
 
-        AppInfoCache.getInstance().clearCacheEntry(consumerKey);
         updateAppAndRevokeTokensAndAuthzCodes(consumerKey, properties);
         if (LOG.isDebugEnabled()) {
             LOG.debug("Client Secret for OAuth app with consumerKey: " + consumerKey + " updated in OAuthCache.");
@@ -860,6 +868,13 @@ public class OAuthAdminServiceImpl {
 
         OAuthConsumerAppDTO updatedApplication = getOAuthApplicationData(consumerKey);
         updatedApplication.setOauthConsumerSecret(newSecret);
+
+        handleNonPersistentTokenRevocation(consumerKey);
+        for (OAuthApplicationMgtListener oAuthApplicationMgtListener : OAuthComponentServiceHolder.getInstance()
+                .getOAuthApplicationMgtListeners()) {
+            oAuthApplicationMgtListener.doPostUpdateOauthSecretKey(consumerKey, properties);
+        }
+        AppInfoCache.getInstance().clearCacheEntry(consumerKey);
 
         return updatedApplication;
 
@@ -970,6 +985,14 @@ public class OAuthAdminServiceImpl {
                 throw new IdentityOAuthAdminException("Error occurred while deleting OAuth2 application " +
                         "data for application with consumer key: " + consumerKey, e);
             }
+        }
+
+        Properties properties = new Properties();
+        properties.setProperty(OAuthConstants.OAUTH_APP_NEW_STATE, APP_STATE_DELETED);
+        handleNonPersistentTokenRevocation(consumerKey);
+        for (OAuthApplicationMgtListener oAuthApplicationMgtListener : OAuthComponentServiceHolder.getInstance()
+                .getOAuthApplicationMgtListeners()) {
+            oAuthApplicationMgtListener.doPostRemoveOAuthApplicationData(consumerKey, properties);
         }
         // Remove client credentials from cache.
         OAuthCache.getInstance().clearCacheEntry(new OAuthCacheKey(consumerKey));
@@ -1261,6 +1284,7 @@ public class OAuthAdminServiceImpl {
             revokeAccessTokens(accessTokens, consumerKey, tenantDomain);
             revokeOAuthConsentsForApplication(applicationName, tenantDomain);
         }
+        handleNonPersistentTokenRevocation(consumerKey);
         triggerPostApplicationTokenRevokeListeners(application, revokeRespDTO, accessTokenDOs);
         return revokeRespDTO;
     }
@@ -1880,6 +1904,30 @@ public class OAuthAdminServiceImpl {
             return  OAuthTokenPersistenceFactory.getInstance().getScopeClaimMappingDAO().getScopeNames(tenantId);
         } catch (IdentityOAuth2Exception e) {
             throw handleError("Error while loading OIDC scopes of tenant: " + tenantDomain, e);
+        }
+    }
+
+    /**
+     * Handle revocation of non-persistent tokens when an OAuth application is updated.
+     *
+     * @param consumerKey The consumer key of the OAuth application.
+     * @throws IdentityOAuthAdminException If an error occurs while revoking tokens.
+     */
+    private void handleNonPersistentTokenRevocation(String consumerKey) throws IdentityOAuthAdminException {
+
+        if (OAuth2Util.isNonPersistentTokenEnabled(consumerKey)) {
+            long revocationTime = Calendar.getInstance().getTimeInMillis();
+            int tenantId = PrivilegedCarbonContext.getThreadLocalCarbonContext().getTenantId();
+            try {
+                OAuthTokenPersistenceFactory.getInstance().getRevokedTokenPersistenceDAO().
+                        revokeTokensBySubjectEvent(consumerKey, ENTITY_ID_TYPE_CLIENT_ID,
+                                revocationTime, tenantId, 0);
+                new RefreshTokenDAOImpl().revokeTokensForApp(consumerKey);
+
+            } catch (IdentityOAuth2Exception e) {
+                throw new IdentityOAuthAdminException(
+                        "Error while persisting revoking access tokens by consumer key event.", e);
+            }
         }
     }
 }
