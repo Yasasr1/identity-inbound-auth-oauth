@@ -21,6 +21,8 @@ package org.wso2.carbon.identity.oauth.listener;
 import org.wso2.carbon.identity.oauth.IdentityOAuthAdminException;
 import org.wso2.carbon.identity.oauth.dto.OAuthConsumerAppDTO;
 
+import java.util.Properties;
+
 /**
  * Listener interface for OAuth application management CRUD operations.
  */
@@ -64,4 +66,39 @@ public interface OAuthApplicationMgtListener {
      * @throws IdentityOAuthAdminException in case of failure.
      */
     void doPreRemoveOAuthApplicationData(String consumerKey) throws IdentityOAuthAdminException;
+
+    /**
+     * Post-listener for the update consumer application.
+     *
+     * @param consumerKey consumer app DTO.
+     * @throws IdentityOAuthAdminException in case of failure.
+     */
+    default void doPostUpdateConsumerApplicationState(String consumerKey, Properties properties)
+            throws IdentityOAuthAdminException {
+        // Default method implementation.
+    }
+
+    /**
+     * Post-listener for the update OAuth secret key.
+     *
+     * @param consumerKey consumer key.
+     * @param properties  additional properties related to the update.
+     * @throws IdentityOAuthAdminException in case of failure.
+     */
+    default void doPostUpdateOauthSecretKey(String consumerKey, Properties properties)
+            throws IdentityOAuthAdminException {
+        // Default method implementation.
+    }
+
+    /**
+     * Post-listener for the remove OAuth application data.
+     *
+     * @param consumerKey consumer key.
+     * @param properties  additional properties related to the removal.
+     * @throws IdentityOAuthAdminException in case of failure.
+     */
+    default void doPostRemoveOAuthApplicationData(String consumerKey, Properties properties)
+            throws IdentityOAuthAdminException {
+        // Default method implementation.
+    }
 }
