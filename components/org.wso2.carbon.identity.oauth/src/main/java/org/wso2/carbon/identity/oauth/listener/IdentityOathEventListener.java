@@ -39,9 +39,11 @@ import org.wso2.carbon.identity.oauth.util.ClaimMetaDataCacheEntry;
 import org.wso2.carbon.identity.oauth.util.ClaimMetaDataCacheKey;
 import org.wso2.carbon.identity.oauth2.IdentityOAuth2Exception;
 import org.wso2.carbon.identity.oauth2.dao.OAuthTokenPersistenceFactory;
+import org.wso2.carbon.identity.oauth2.dao.RefreshTokenDAOImpl;
 import org.wso2.carbon.identity.oauth2.internal.OAuth2ServiceComponentHolder;
 import org.wso2.carbon.identity.oauth2.model.AccessTokenDO;
 import org.wso2.carbon.identity.oauth2.model.AuthzCodeDO;
+import org.wso2.carbon.identity.oauth2.util.OAuth2Util;
 import org.wso2.carbon.user.core.UserCoreConstants;
 import org.wso2.carbon.user.core.UserStoreException;
 import org.wso2.carbon.user.core.UserStoreManager;
@@ -338,6 +340,35 @@ public class IdentityOathEventListener extends AbstractIdentityUserOperationEven
         } catch (IdentityOAuth2Exception e) {
             String errorMsg = "Error occurred while retrieving access tokens issued for user : " + userName;
             log.error(errorMsg, e);
+        }
+
+        if (!OAuth2Util.isAccessTokenPersistenceEnabled()) {
+            try {
+                if (log.isDebugEnabled()) {
+                    log.debug("Access token persistence is disabled. Hence, removing cache entries tokens for " +
+                            "refresh tokens");
+                }
+                Set<AccessTokenDO> refreshTokenDOSet = new RefreshTokenDAOImpl()
+                        .getRefreshTokensByUserForOpenidScope(authenticatedUser);
+                removeNonPersistentAccessTokensFromCache(refreshTokenDOSet);
+            } catch (IdentityOAuth2Exception e) {
+                String errorMsg = "Error occurred while retrieving refresh tokens issued for user.";
+                log.error(errorMsg, e);
+            }
+        }
+    }
+
+    private void removeNonPersistentAccessTokensFromCache(Set<AccessTokenDO> accessTokenDOSet) {
+
+        if (CollectionUtils.isNotEmpty(accessTokenDOSet)) {
+            for (AccessTokenDO accessTokenDO : accessTokenDOSet) {
+                if (StringUtils.equalsIgnoreCase(OAuthConstants.GrantTypes.PASSWORD,
+                        accessTokenDO.getGrantType())) {
+                    continue;
+                }
+                String tokenId = accessTokenDO.getTokenId();
+                AuthorizationGrantCache.getInstance().clearCacheEntryByTokenId(null, tokenId);
+            }
         }
     }
 
