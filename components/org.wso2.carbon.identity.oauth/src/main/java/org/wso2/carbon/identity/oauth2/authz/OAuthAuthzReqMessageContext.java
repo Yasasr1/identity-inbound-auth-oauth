@@ -49,6 +49,8 @@ public class OAuthAuthzReqMessageContext implements Serializable {
     private long codeIssuedTime;
 
     private String[] authorizedInternalScopes;
+    private String tokenId;
+    private boolean isConsentedToken;
 
     private Properties properties = new Properties();
 
@@ -185,5 +187,25 @@ public class OAuthAuthzReqMessageContext implements Serializable {
 
     public void setAuthorizedInternalScopes(String[] authorizedInternalScopes) {
         this.authorizedInternalScopes = authorizedInternalScopes;
+    }
+
+    public String getTokenId() {
+
+        return tokenId;
+    }
+
+    public void setTokenId(String tokenId) {
+
+        this.tokenId = tokenId;
+    }
+
+    public boolean isConsentedToken() {
+
+        return isConsentedToken;
+    }
+
+    public void setConsentedToken(boolean consentedToken) {
+
+        isConsentedToken = consentedToken;
     }
 }
