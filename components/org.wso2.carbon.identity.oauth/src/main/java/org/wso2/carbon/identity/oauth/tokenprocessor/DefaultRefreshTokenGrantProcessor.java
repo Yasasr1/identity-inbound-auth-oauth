@@ -253,6 +253,14 @@ public class DefaultRefreshTokenGrantProcessor implements RefreshTokenGrantProce
             // Clear the old cache entry and add the updated entry under the new access token.
             AuthorizationGrantCache.getInstance().clearCacheEntryByTokenId(oldAuthorizationGrantCacheKey,
                     oldAccessToken.getTokenId());
+            // If refresh token persistence is disabled and the user is not federated, do not store user attributes.
+            // When a user's profile is updated after the token is issued, the cache cannot be cleared because
+            // the Identity Server will not persist either the refresh token or the access token. As a result,
+            // outdated user attribute data would be returned on the next refresh grant.
+            // To mitigate this, user attributes are set to null.
+            if (!OAuth2Util.isRefreshTokenPersistenceEnabled() && !accessTokenBean.getAuthzUser().isFederatedUser()) {
+                grantCacheEntry.setUserAttributes(null);
+            }
             AuthorizationGrantCache.getInstance().addToCacheByToken(newAuthorizationGrantCacheKey,
                     grantCacheEntry);
         }

@@ -38,6 +38,7 @@ import org.wso2.carbon.identity.oauth2.model.AccessTokenDO;
 import org.wso2.carbon.identity.oauth2.model.RefreshTokenValidationDataDO;
 import org.wso2.carbon.identity.oauth2.token.OAuthTokenReqMessageContext;
 import org.wso2.carbon.identity.oauth2.util.OAuth2Util;
+import org.wso2.carbon.identity.openidconnect.OIDCClaimUtil;
 
 import java.sql.Timestamp;
 import java.util.Date;
@@ -167,6 +168,20 @@ public class HybridRefreshTokenGrantProcessor implements RefreshTokenGrantProces
         accessTokenDO.setTokenBinding(tokReqMsgCtx.getTokenBinding());
         accessTokenDO.setNotPersisted(true);
 
+        String previousGrantType = validationBean.getGrantType();
+        // Check if the previous grant type is consent refresh token type or not.
+        if (!StringUtils.equals(OAuthConstants.GrantTypes.REFRESH_TOKEN, previousGrantType)) {
+            // If the previous grant type is not a refresh token, then check if it's a consent token or not.
+            if (OIDCClaimUtil.isConsentBasedClaimFilteringApplicable(previousGrantType)) {
+                accessTokenDO.setIsConsentedToken(true);
+                tokReqMsgCtx.setConsentedToken(true);
+            }
+        } else {
+            if (validationBean.isConsentedToken()) {
+                tokReqMsgCtx.setConsentedToken(true);
+                accessTokenDO.setIsConsentedToken(true);
+            }
+        }
         return accessTokenDO;
     }
 

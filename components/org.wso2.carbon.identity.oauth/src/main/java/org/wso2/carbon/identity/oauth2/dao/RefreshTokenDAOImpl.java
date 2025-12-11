@@ -82,6 +82,9 @@ public class RefreshTokenDAOImpl extends AbstractOAuthDAO implements RefreshToke
     public void insertRefreshToken(String accessToken, String consumerKey, AccessTokenDO accessTokenDO,
                                    String userStoreDomain) throws IdentityOAuth2Exception {
 
+        if (!isEnabled()) {
+            return;
+        }
         try (Connection connection = getConnection()) {
             insertRefreshToken(consumerKey, accessTokenDO, connection, userStoreDomain);
         } catch (SQLException e) {
@@ -105,8 +108,7 @@ public class RefreshTokenDAOImpl extends AbstractOAuthDAO implements RefreshToke
                                       AccessTokenDO existingAccessTokenDO, String rawUserStoreDomain)
             throws IdentityOAuth2Exception {
 
-        // If non-persistent tokens are enabled for the consumer key, skip the persistence process.
-        if (!OAuth2Util.isNonPersistentTokenEnabled(consumerKey)) {
+        if (!isEnabled()) {
             return false;
         }
 
@@ -145,6 +147,9 @@ public class RefreshTokenDAOImpl extends AbstractOAuthDAO implements RefreshToke
     public AccessTokenDO getActiveRefreshToken(String consumerKey, AuthenticatedUser authzUser,
                                                String userStoreDomain, String scope) throws IdentityOAuth2Exception {
 
+        if (!isEnabled()) {
+            return null;
+        }
         if (LOG.isDebugEnabled()) {
             LOG.debug(String.format("Retrieving latest active refresh token for client: %s, scope: %s",
                     consumerKey, scope));
@@ -278,6 +283,9 @@ public class RefreshTokenDAOImpl extends AbstractOAuthDAO implements RefreshToke
                                                    AccessTokenDO accessTokenBean, String rawUserStoreDomain)
             throws IdentityOAuth2Exception {
 
+        if (!isEnabled()) {
+            return;
+        }
         String userStoreDomain = OAuth2Util.getSanitizedUserStoreDomain(rawUserStoreDomain);
 
         // Using try-with-resources to ensure proper resource management
@@ -295,6 +303,10 @@ public class RefreshTokenDAOImpl extends AbstractOAuthDAO implements RefreshToke
 
     @Override
     public void revokeToken(String refreshToken) throws IdentityOAuth2Exception {
+
+        if (!isEnabled()) {
+            return;
+        }
 
         // Declare connection outside the try-with-resources block to manage rollback/commit
         try (Connection connection = IdentityDatabaseUtil.getDBConnection(true)) {
@@ -330,6 +342,9 @@ public class RefreshTokenDAOImpl extends AbstractOAuthDAO implements RefreshToke
     public RefreshTokenValidationDataDO validateRefreshToken(String consumerKey, String refreshToken)
             throws IdentityOAuth2Exception {
 
+        if (!isEnabled()) {
+            return null;
+        }
         // Log token validation details
         if (LOG.isDebugEnabled()) {
             if (IdentityUtil.isTokenLoggable(IdentityConstants.IdentityTokens.REFRESH_TOKEN)) {
@@ -420,6 +435,9 @@ public class RefreshTokenDAOImpl extends AbstractOAuthDAO implements RefreshToke
     @Override
     public AccessTokenDO getRefreshToken(String refreshToken) throws IdentityOAuth2Exception {
 
+        if (!isEnabled()) {
+            return null;
+        }
         // Log the hashed refresh token for debugging, if loggable
         if (LOG.isDebugEnabled() && IdentityUtil.isTokenLoggable(IdentityConstants.IdentityTokens.REFRESH_TOKEN)) {
             LOG.debug(String.format("Validating refresh token (hashed): %s", DigestUtils.sha256Hex(refreshToken)));
@@ -623,6 +641,10 @@ public class RefreshTokenDAOImpl extends AbstractOAuthDAO implements RefreshToke
     @Override
     public void revokeTokensForApp(String consumerKey) throws IdentityOAuth2Exception {
 
+        if (!isEnabled()) {
+            return;
+        }
+
         // Log debug message about revoking tokens for the specified client
         if (LOG.isDebugEnabled()) {
             LOG.debug(String.format("Revoking all access tokens and authorization codes for client: %s", consumerKey));
@@ -656,6 +678,10 @@ public class RefreshTokenDAOImpl extends AbstractOAuthDAO implements RefreshToke
     @Override
     public void revokeTokensByUser(AuthenticatedUser authenticatedUser, int tenantId, String userStoreDomain)
             throws IdentityOAuth2Exception {
+
+        if (!isEnabled()) {
+            return;
+        }
 
         // Log debug message about token revocation operation
         if (LOG.isDebugEnabled()) {
@@ -748,6 +774,10 @@ public class RefreshTokenDAOImpl extends AbstractOAuthDAO implements RefreshToke
     @Override
     public Set<AccessTokenDO> getRefreshTokensByUserForOpenidScope(AuthenticatedUser authenticatedUser)
             throws IdentityOAuth2Exception {
+
+        if (!isEnabled()) {
+            return null;
+        }
 
         if (LOG.isDebugEnabled()) {
             LOG.debug("Retrieving refresh tokens with openid scope of authenticated user");
@@ -843,5 +873,15 @@ public class RefreshTokenDAOImpl extends AbstractOAuthDAO implements RefreshToke
     private boolean isRefreshTokenExpired(long issuedTimeInMillis, long validityPeriodMillis) {
 
         return OAuth2Util.getTimeToExpire(issuedTimeInMillis, validityPeriodMillis, true) < 0;
+    }
+
+    /**
+     * Check whether the refresh token persistence is enabled.
+     *
+     * @return true if the refresh token persistence is enabled, false otherwise.
+     */
+    private boolean isEnabled() {
+
+        return !OAuth2Util.isAccessTokenPersistenceEnabled() && OAuth2Util.isRefreshTokenPersistenceEnabled();
     }
 }

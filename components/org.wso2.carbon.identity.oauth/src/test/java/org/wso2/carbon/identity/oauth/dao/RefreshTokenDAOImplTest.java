@@ -121,6 +121,7 @@ public class RefreshTokenDAOImplTest extends TestOAuthDAOBase {
         mockStatic(IdentityUtil.class);
         mockStatic(OAuth2ServiceComponentHolder.class);
         mockStatic(IdentityTenantUtil.class);
+        when(OAuth2Util.isRefreshTokenPersistenceEnabled()).thenReturn(true);
         when(IdentityTenantUtil.getTenantDomain(-1234)).thenReturn("carbon.super");
         when(IdentityTenantUtil.getTenantId("carbon.super")).thenReturn(-1234);
         when(OAuth2Util.getTenantId("carbon.super")).thenReturn(-1234);
