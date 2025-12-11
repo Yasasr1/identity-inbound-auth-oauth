@@ -42,4 +42,5 @@ public class OAuth2Constants {
     public static final String OAUTH_KEEP_REVOKED_ACCESS_TOKEN_LIST = "OAuth.TokenPersistence.KeepRevokedAccessTokens";
     public static final boolean DEFAULT_REFRESH_TOKEN_PERSIST_ENABLED = true;
     public static final String OAUTH_REFRESH_TOKEN_PERSISTENCE_ENABLE = "OAuth.TokenPersistence.PersistRefreshToken";
+    public static final String SKIP_REFRESH_TOKEN_PERSISTENT = "npr:skipRefreshTokenPersistent";
 }
