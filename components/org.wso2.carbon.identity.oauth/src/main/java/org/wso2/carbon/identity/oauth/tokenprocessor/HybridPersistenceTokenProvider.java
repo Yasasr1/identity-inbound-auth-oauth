@@ -21,6 +21,7 @@ package org.wso2.carbon.identity.oauth.tokenprocessor;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 import org.apache.commons.codec.digest.DigestUtils;
+import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatedUser;
@@ -30,6 +31,7 @@ import org.wso2.carbon.identity.oauth.common.OAuthConstants;
 import org.wso2.carbon.identity.oauth.common.OAuthConstants.NonPersistenceConstants;
 import org.wso2.carbon.identity.oauth.internal.OAuthComponentServiceHolder;
 import org.wso2.carbon.identity.oauth2.IdentityOAuth2Exception;
+import org.wso2.carbon.identity.oauth2.OAuth2Constants;
 import org.wso2.carbon.identity.oauth2.dao.OAuthTokenPersistenceFactory;
 import org.wso2.carbon.identity.oauth2.dao.RefreshTokenDAOImpl;
 import org.wso2.carbon.identity.oauth2.model.AccessTokenDO;
@@ -41,6 +43,8 @@ import org.wso2.carbon.user.api.UserStoreException;
 import org.wso2.carbon.user.core.service.RealmService;
 
 import java.sql.Timestamp;
+import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -56,6 +60,9 @@ public class HybridPersistenceTokenProvider implements TokenProvider {
 
     private static final Log LOG = LogFactory.getLog(HybridPersistenceTokenProvider.class);
     private final DefaultTokenProvider defaultTokenProvider = new DefaultTokenProvider();
+    private static final String ISS = "iss";
+    private static final String AUD = "aud";
+    private static final String DEFAULT_JWT_RT_HEADER_VALUE = "rt+jwt";
 
     /**
      * Retrieves and verifies JWT access token based on the JWT claims with an option to include expired tokens
@@ -191,6 +198,14 @@ public class HybridPersistenceTokenProvider implements TokenProvider {
                 // Handle missing claim case
                 LOG.debug("Grant type claim is missing in the non persistent access token.");
             }
+            Object consentedTokenObj = claimsSet.getClaim(OAuth2Constants.IS_CONSENTED);
+            if (consentedTokenObj != null) {
+                boolean consentedToken = Boolean.parseBoolean(consentedTokenObj.toString());
+                validationDataDO.setIsConsentedToken(consentedToken);
+            } else {
+                // Handle missing claim case
+                LOG.debug("Consented token claim is missing in the non persistent access token.");
+            }
             RealmService realmService = OAuthComponentServiceHolder.getInstance().getRealmService();
             try {
                 int tenantId = realmService.getTenantManager().getTenantId(authenticatedUser.getTenantDomain());
@@ -224,6 +239,11 @@ public class HybridPersistenceTokenProvider implements TokenProvider {
             throws IdentityOAuth2Exception {
 
         if (!TokenMgtUtil.isHybridPersistedToken(refreshToken)) {
+            if (JWTUtils.isJWT(refreshToken)) {
+                LOG.debug("Refresh token is JWT, should be with non persistent access token. " +
+                        "Hence, validating using hybrid persistent token provider.");
+                return validateJWTRefreshToken(refreshToken, consumerKey);
+            }
             LOG.debug("Refresh token is not with non-persistence access token. " +
                     "Hence, finding from persisted access token table from database.");
 
@@ -232,6 +252,109 @@ public class HybridPersistenceTokenProvider implements TokenProvider {
 
         RefreshTokenDAOImpl refreshTokenDAO = new RefreshTokenDAOImpl();
         return refreshTokenDAO.validateRefreshToken(consumerKey, refreshToken);
+    }
+
+    private RefreshTokenValidationDataDO validateJWTRefreshToken(String token, String consumerKey)
+            throws IdentityOAuth2Exception {
+
+        SignedJWT signedJWT = TokenMgtUtil.parseJWT(token);
+        if (!StringUtils.equals(DEFAULT_JWT_RT_HEADER_VALUE, signedJWT.getHeader().getType().getType())) {
+            throw new IdentityOAuth2Exception("Invalid jwt refresh token provided for validation.");
+        }
+        JWTClaimsSet claimsSet = TokenMgtUtil.getTokenJWTClaims(signedJWT);
+        // get JTI of the token.
+        String tokenIdentifier = TokenMgtUtil.getTokenIdentifier(claimsSet);
+        if (claimsSet.getClaim(NonPersistenceConstants.ENTITY_ID) == null) {
+            throw new IdentityOAuth2Exception("Invalid jwt refresh token provided for validation.");
+        }
+        RefreshTokenValidationDataDO validationDataDO;
+        AuthenticatedUser authenticatedUser = TokenMgtUtil.getAuthenticatedUser(claimsSet);
+        // validate JWT token signature.
+        TokenMgtUtil.validateJWTSignature(signedJWT, claimsSet, authenticatedUser);
+        // expiry time verification.
+        boolean isTokenActive = JWTUtils.checkExpirationTime(claimsSet.getExpirationTime());
+        // not before time verification.
+        JWTUtils.checkNotBeforeTime(claimsSet.getNotBeforeTime());
+        validateAudienceClaim(claimsSet);
+
+        /*
+         * check whether the token is already revoked through direct revocations and through following indirect
+         * revocation events.
+         * 1. check if consumer app was changed.
+         * 2. check if user was changed.
+         */
+        boolean isTokenRevoked = TokenMgtUtil.isTokenRevokedDirectly(tokenIdentifier, consumerKey)
+                || TokenMgtUtil.isTokenRevokedIndirectly(claimsSet, authenticatedUser);
+
+        // create new AccessTokenDO with validated token information.
+        validationDataDO = new RefreshTokenValidationDataDO();
+        validationDataDO.setRefreshToken(tokenIdentifier);
+        validationDataDO.setIssuedTime(new Timestamp(claimsSet.getIssueTime().getTime()));
+        validationDataDO.setValidityPeriodInMillis(claimsSet.getExpirationTime().getTime()
+                - claimsSet.getIssueTime().getTime());
+        Object scopes = claimsSet.getClaim(OAuth2Constants.REFRESH_TOKEN_SCOPE_CLAIM_KEY);
+        validationDataDO.setScope(TokenMgtUtil.getScopes(scopes));
+        validationDataDO.setAuthorizedUser(authenticatedUser);
+        validationDataDO.setWithNotPersistedAT(true);
+        Object grantTypeObj = claimsSet.getClaim(NonPersistenceConstants.GRANT_TYPE);
+        if (grantTypeObj != null) {
+            String grantType = grantTypeObj.toString();
+            validationDataDO.setGrantType(grantType);
+            // Use grantType here
+        } else {
+            // Handle missing claim case
+            LOG.debug("Grant type claim is missing in the non persistent access token.");
+        }
+        Object consentedTokenObj = claimsSet.getClaim(OAuth2Constants.IS_CONSENTED);
+        if (consentedTokenObj != null) {
+            boolean consentedToken = Boolean.parseBoolean(consentedTokenObj.toString());
+            validationDataDO.setConsentedToken(consentedToken);
+        } else {
+            // Handle missing claim case
+            LOG.debug("Consented token claim is missing in the non persistent access token.");
+        }
+
+        String state;
+        if (isTokenRevoked) {
+            state = OAuthConstants.TokenStates.TOKEN_STATE_REVOKED;
+        } else if (isTokenActive) {
+            state = OAuthConstants.TokenStates.TOKEN_STATE_ACTIVE;
+        } else {
+            state = OAuthConstants.TokenStates.TOKEN_STATE_EXPIRED;
+        }
+
+        validationDataDO.setRefreshTokenState(state);
+        validationDataDO.setTokenId(TokenMgtUtil.getTokenId(claimsSet));
+        validationDataDO.setTokenBindingReference(OAuthConstants.TokenBindings.NONE);
+
+        return validationDataDO;
+
+    }
+
+    private void validateAudienceClaim(JWTClaimsSet claimsSet) throws IdentityOAuth2Exception {
+
+        String issuer = (String) claimsSet.getClaim(ISS);
+        Object audClaim = claimsSet.getClaim(AUD);
+
+        if (StringUtils.isBlank(issuer) || audClaim == null) {
+            throw new IdentityOAuth2Exception("Invalid jwt refresh token provided for validation.");
+        }
+
+        boolean issuerInAud = false;
+
+        if (audClaim instanceof String) {
+            issuerInAud = StringUtils.equals(issuer, (String) audClaim);
+        } else if (audClaim instanceof List<?>) {
+            List<?> audList = (List<?>) audClaim;
+            issuerInAud = audList.stream()
+                    .filter(Objects::nonNull)
+                    .anyMatch(a -> issuer.equals(a.toString()));
+        }
+
+        if (!issuerInAud) {
+            throw new IdentityOAuth2Exception("Invalid jwt refresh token provided for validation.");
+        }
+
     }
 
     /**
@@ -245,6 +368,11 @@ public class HybridPersistenceTokenProvider implements TokenProvider {
     public AccessTokenDO getVerifiedRefreshToken(String refreshToken) throws IdentityOAuth2Exception {
 
         if (!TokenMgtUtil.isHybridPersistedToken(refreshToken)) {
+            if (JWTUtils.isJWT(refreshToken)) {
+                LOG.debug("Refresh token is JWT, should be with non persistent access token. " +
+                        "Hence, validating using hybrid persistent token provider.");
+                return validateJWTRefreshToken(refreshToken);
+            }
             LOG.debug("Refresh token is not with non-persistence access token. " +
                     "Hence, finding from persisted access token table from database.");
             return OAuthTokenPersistenceFactory.getInstance().getTokenManagementDAO().getRefreshToken(refreshToken);
@@ -252,6 +380,93 @@ public class HybridPersistenceTokenProvider implements TokenProvider {
 
         RefreshTokenDAOImpl refreshTokenDAO = new RefreshTokenDAOImpl();
         return refreshTokenDAO.getRefreshToken(refreshToken);
+    }
+
+    private AccessTokenDO validateJWTRefreshToken(String token)  throws IdentityOAuth2Exception {
+
+        SignedJWT signedJWT = TokenMgtUtil.parseJWT(token);
+        if (!StringUtils.equals(DEFAULT_JWT_RT_HEADER_VALUE, signedJWT.getHeader().getType().getType())) {
+            throw new IdentityOAuth2Exception("Invalid jwt refresh token provided for validation.");
+        }
+        JWTClaimsSet claimsSet = TokenMgtUtil.getTokenJWTClaims(signedJWT);
+        // get JTI of the token.
+        String tokenIdentifier = TokenMgtUtil.getTokenIdentifier(claimsSet);
+        String consumerKey = (String) claimsSet.getClaim(NonPersistenceConstants.AUTHORIZATION_PARTY);
+        if (claimsSet.getClaim(NonPersistenceConstants.ENTITY_ID) == null) {
+            throw new IdentityOAuth2Exception("Invalid jwt refresh token provided for validation.");
+        }
+        AccessTokenDO validationDataDO;
+        AuthenticatedUser authenticatedUser = TokenMgtUtil.getAuthenticatedUser(claimsSet);
+        // validate JWT token signature.
+        TokenMgtUtil.validateJWTSignature(signedJWT, claimsSet, authenticatedUser);
+        // expiry time verification.
+        boolean isTokenActive = JWTUtils.checkExpirationTime(claimsSet.getExpirationTime());
+        // not before time verification.
+        JWTUtils.checkNotBeforeTime(claimsSet.getNotBeforeTime());
+        validateAudienceClaim(claimsSet);
+
+        /*
+         * check whether the token is already revoked through direct revocations and through following indirect
+         * revocation events.
+         * 1. check if consumer app was changed.
+         * 2. check if user was changed.
+         */
+        if (TokenMgtUtil.isTokenRevokedDirectly(tokenIdentifier, consumerKey)
+                || TokenMgtUtil.isTokenRevokedIndirectly(claimsSet, authenticatedUser)) {
+            return null;
+        }
+
+        // create new AccessTokenDO with validated token information.
+        validationDataDO = new AccessTokenDO();
+        validationDataDO.setRefreshToken(tokenIdentifier);
+        validationDataDO.setConsumerKey(consumerKey);
+        validationDataDO.setRefreshTokenIssuedTime(new Timestamp(claimsSet.getIssueTime().getTime()));
+        validationDataDO.setRefreshTokenValidityPeriodInMillis(claimsSet.getExpirationTime().getTime()
+                - claimsSet.getIssueTime().getTime());
+        Object scopes = claimsSet.getClaim(OAuth2Constants.REFRESH_TOKEN_SCOPE_CLAIM_KEY);
+        validationDataDO.setScope(TokenMgtUtil.getScopes(scopes));
+        validationDataDO.setAuthzUser(authenticatedUser);
+        validationDataDO.setNotPersisted(true);
+        Object autObj = claimsSet.getClaim(OAuthConstants.AUTHORIZED_USER_TYPE);
+        if (autObj != null) {
+            String aut = autObj.toString();
+            validationDataDO.setTokenType(aut);
+        } else {
+            // Handle missing claim case
+            LOG.debug("Aut type claim is missing in the non persistent access token.");
+        }
+        Object grantTypeObj = claimsSet.getClaim(NonPersistenceConstants.GRANT_TYPE);
+        if (grantTypeObj != null) {
+            String grantType = grantTypeObj.toString();
+            validationDataDO.setGrantType(grantType);
+            // Use grantType here
+        } else {
+            // Handle missing claim case
+            LOG.debug("Grant type claim is missing in the non persistent access token.");
+        }
+        Object consentedTokenObj = claimsSet.getClaim(OAuth2Constants.IS_CONSENTED);
+        if (consentedTokenObj != null) {
+            boolean consentedToken = Boolean.parseBoolean(consentedTokenObj.toString());
+            validationDataDO.setIsConsentedToken(consentedToken);
+        } else {
+            // Handle missing claim case
+            LOG.debug("Consented token claim is missing in the non persistent access token.");
+        }
+        RealmService realmService = OAuthComponentServiceHolder.getInstance().getRealmService();
+        try {
+            int tenantId = realmService.getTenantManager().getTenantId(authenticatedUser.getTenantDomain());
+            validationDataDO.setTenantID(tenantId);
+        } catch (UserStoreException e) {
+            throw new IdentityOAuth2Exception("Error while getting tenant ID from tenant domain:"
+                    + authenticatedUser.getTenantDomain(), e);
+        }
+        if (isTokenActive) {
+            validationDataDO.setTokenState(OAuthConstants.TokenStates.TOKEN_STATE_ACTIVE);
+        } else {
+            validationDataDO.setTokenState(OAuthConstants.TokenStates.TOKEN_STATE_EXPIRED);
+        }
+        validationDataDO.setTokenId(TokenMgtUtil.getTokenId(claimsSet));
+        return validationDataDO;
     }
 
     /**

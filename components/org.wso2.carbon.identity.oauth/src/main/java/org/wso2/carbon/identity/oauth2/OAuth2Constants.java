@@ -35,6 +35,7 @@ public class OAuth2Constants {
     public static final String GROUPS = "groups";
     public static final String TOKEN_ID = "token_id";
     public static final String IS_FEDERATED = "is_federated";
+    public static final String IS_CONSENTED = "is_consented";
     public static final String PREV_ACCESS_TOKEN = "previousAccessToken";
     public static final boolean DEFAULT_ACCESS_TOKEN_PERSIST_ENABLED = true;
     public static final String OAUTH_ACCESS_TOKEN_PERSISTENCE_ENABLE = "OAuth.TokenPersistence.PersistAccessToken";
@@ -43,4 +44,5 @@ public class OAuth2Constants {
     public static final boolean DEFAULT_REFRESH_TOKEN_PERSIST_ENABLED = true;
     public static final String OAUTH_REFRESH_TOKEN_PERSISTENCE_ENABLE = "OAuth.TokenPersistence.PersistRefreshToken";
     public static final String SKIP_REFRESH_TOKEN_PERSISTENT = "npr:skipRefreshTokenPersistent";
+    public static final String REFRESH_TOKEN_SCOPE_CLAIM_KEY = "rt_scope";
 }
