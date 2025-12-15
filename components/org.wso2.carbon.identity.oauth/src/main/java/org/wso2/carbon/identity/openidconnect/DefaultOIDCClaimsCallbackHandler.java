@@ -470,7 +470,8 @@ public class DefaultOIDCClaimsCallbackHandler implements CustomClaimsCallbackHan
         return userAttributes;
     }
 
-    private Map<ClaimMapping, String> getUserAttributesCachedAgainstToken(String accessToken) {
+    private Map<ClaimMapping, String> getUserAttributesCachedAgainstToken(String accessToken)
+            throws IdentityOAuth2Exception {
         Map<ClaimMapping, String> userAttributes = Collections.emptyMap();
         if (accessToken != null) {
             // get the user claims cached against the access token if any
