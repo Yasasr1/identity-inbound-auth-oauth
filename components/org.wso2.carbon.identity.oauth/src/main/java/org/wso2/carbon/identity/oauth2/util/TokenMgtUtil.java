@@ -26,7 +26,9 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.wso2.carbon.context.PrivilegedCarbonContext;
+import org.wso2.carbon.identity.application.authentication.framework.exception.UserSessionException;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatedUser;
+import org.wso2.carbon.identity.application.authentication.framework.store.UserSessionStore;
 import org.wso2.carbon.identity.application.common.model.IdentityProvider;
 import org.wso2.carbon.identity.base.IdentityConstants;
 import org.wso2.carbon.identity.core.util.IdentityUtil;
@@ -193,10 +195,48 @@ public class TokenMgtUtil {
                 && (boolean) claimsSet.getClaim(OAuth2Constants.IS_FEDERATED);
         authenticatedUser = resolveAuthenticatedUserFromEntityId((String) claimsSet.getClaim(
                 NonPersistenceConstants.ENTITY_ID), userTenantDomain, isFederated, claimsSet.getSubject(), claimsSet);
+        if (isFederated) {
+            if (authenticatedUser == null) {
+                authenticatedUser =
+                        createFederatedAuthenticatedUser((String)
+                                claimsSet.getClaim(NonPersistenceConstants.ENTITY_ID));
+            } else {
+                authenticatedUser.setFederatedUser(true);
+            }
+        }
         if (authenticatedUser == null) {
             throw new IdentityOAuth2Exception("Error while getting authenticated user. Authenticated user not found.");
         }
         authenticatedUser.setAuthenticatedSubjectIdentifier(claimsSet.getSubject());
+        return authenticatedUser;
+    }
+
+    /**
+     * Create an authenticated user object for the given user ID from usersession store.
+     *
+     * @param userId User ID
+     * @return AuthenticatedUser
+     */
+    public static AuthenticatedUser createFederatedAuthenticatedUser(String userId) throws IdentityOAuth2Exception {
+
+        AuthenticatedUser authenticatedUser;
+        try {
+            authenticatedUser = UserSessionStore.getInstance().getUser(userId);
+            if (authenticatedUser == null) {
+                throw new IdentityOAuth2Exception("Error occurred while resolving the user from the userId for the "
+                        + "federated user. No user found for the userId");
+            }
+            authenticatedUser.setUserName(authenticatedUser.getUserName());
+            authenticatedUser.setTenantDomain(authenticatedUser.getTenantDomain());
+            authenticatedUser.setUserStoreDomain(authenticatedUser.getUserStoreDomain());
+            authenticatedUser.setFederatedUser(true);
+            authenticatedUser.setFederatedIdPName(authenticatedUser.getFederatedIdPName());
+            authenticatedUser.setUserId(userId);
+        } catch (UserSessionException e) {
+            // In here we better not log the user id.
+            throw new IdentityOAuth2Exception("Error occurred while resolving the user from the userId for the "
+                    + "federated user", e);
+        }
         return authenticatedUser;
     }
 
