@@ -481,6 +481,7 @@ public class OAuth2ServiceTest extends PowerMockIdentityBaseTest {
         setUpRevokeToken();
         mockStatic(IdentityTenantUtil.class);
         when(IdentityTenantUtil.getTenantId(anyString())).thenReturn(-1234);
+        when(OAuth2Util.isAccessTokenPersistenceEnabled()).thenReturn(true);
         RefreshTokenValidationDataDO refreshTokenValidationDataDO = new RefreshTokenValidationDataDO();
         refreshTokenValidationDataDO.setGrantType(GrantType.REFRESH_TOKEN.toString());
         refreshTokenValidationDataDO.setAccessToken("testAccessToken");

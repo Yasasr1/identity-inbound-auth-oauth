@@ -152,7 +152,8 @@ public class DefaultIDTokenBuilder implements org.wso2.carbon.identity.openidcon
             if (OAuthConstants.GrantTypes.REFRESH_TOKEN.equalsIgnoreCase(
                     tokenReqMsgCtxt.getOauth2AccessTokenReqDTO().getGrantType())) {
                 AuthorizationGrantCacheEntry authorizationGrantCacheEntryFromToken =
-                        getAuthorizationGrantCacheEntryFromToken(tokenRespDTO.getAccessToken());
+                        getAuthorizationGrantCacheEntryFromToken(tokenRespDTO.getAccessToken(),
+                                tokenRespDTO.getTokenId());
                 if (authorizationGrantCacheEntryFromToken != null) {
                     if (isAuthTimeRequired(authorizationGrantCacheEntryFromToken)) {
                         authTime = authorizationGrantCacheEntryFromToken.getAuthTime();
@@ -161,7 +162,7 @@ public class DefaultIDTokenBuilder implements org.wso2.carbon.identity.openidcon
             }
             if (!OAuthConstants.GrantTypes.PASSWORD.equalsIgnoreCase(
                     tokenReqMsgCtxt.getOauth2AccessTokenReqDTO().getGrantType())) {
-                idpSessionKey = getIdpSessionKey(accessToken);
+                idpSessionKey = getIdpSessionKey(accessToken, tokenRespDTO.getTokenId());
                 if (idpSessionKey == null && tokenReqMsgCtxt.getProperty(SESSION_IDENTIFIER) != null) {
                     idpSessionKey = tokenReqMsgCtxt.getProperty(SESSION_IDENTIFIER).toString();
                 }
@@ -494,10 +495,10 @@ public class DefaultIDTokenBuilder implements org.wso2.carbon.identity.openidcon
      * @param accessToken   Access token.
      * @return              AuthorizationGrantCacheEntry containing user attributes and nonce value.
      */
-    private AuthorizationGrantCacheEntry getAuthorizationGrantCacheEntryFromToken(String accessToken) {
+    private AuthorizationGrantCacheEntry getAuthorizationGrantCacheEntryFromToken(String accessToken, String tokenId) {
 
         AuthorizationGrantCacheKey cacheKey = new AuthorizationGrantCacheKey(accessToken);
-        return AuthorizationGrantCache.getInstance().getValueFromCacheByToken(cacheKey);
+        return AuthorizationGrantCache.getInstance().getValueFromCacheByTokenId(cacheKey, tokenId);
     }
 
     /**
@@ -818,11 +819,12 @@ public class DefaultIDTokenBuilder implements org.wso2.carbon.identity.openidcon
      * @param accessToken   Access Token.
      * @return              IDP Session Key.
      */
-    private String getIdpSessionKey(String accessToken) {
+    private String getIdpSessionKey(String accessToken, String tokenId) {
 
         String idpSessionKey = null;
 
-        AuthorizationGrantCacheEntry authzGrantCacheEntry = getAuthorizationGrantCacheEntryFromToken(accessToken);
+        AuthorizationGrantCacheEntry authzGrantCacheEntry = getAuthorizationGrantCacheEntryFromToken(accessToken,
+                tokenId);
         if (authzGrantCacheEntry != null) {
             idpSessionKey = authzGrantCacheEntry.getSessionContextIdentifier();
         }
