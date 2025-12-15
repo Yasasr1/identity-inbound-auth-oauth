@@ -57,7 +57,9 @@ import org.wso2.carbon.identity.oauth2.token.AccessTokenIssuer;
 import org.wso2.carbon.identity.oauth2.token.OAuthTokenReqMessageContext;
 import org.wso2.carbon.identity.oauth2.token.OauthTokenIssuer;
 import org.wso2.carbon.identity.oauth2.token.handlers.grant.RefreshGrantHandler;
+import org.wso2.carbon.identity.oauth2.util.JWTUtils;
 import org.wso2.carbon.identity.oauth2.util.OAuth2Util;
+import org.wso2.carbon.identity.oauth2.util.TokenMgtUtil;
 import org.wso2.carbon.identity.openidconnect.internal.OpenIDConnectServiceComponentHolder;
 import org.wso2.carbon.identity.openidconnect.model.RequestedClaim;
 import org.wso2.carbon.identity.organization.management.service.exception.OrganizationManagementException;
@@ -361,7 +363,7 @@ public class DefaultOIDCClaimsCallbackHandler implements CustomClaimsCallbackHan
             AuthenticatedUser user = requestMsgCtx.getAuthorizedUser();
             userAttributes = user != null ? user.getUserAttributes() : null;
         }
-         // In the refresh flow, we need to follow the same way to get the claims.
+        // In the refresh flow, we need to follow the same way to get the claims.
         if (isEmpty(userAttributes)) {
             if (log.isDebugEnabled()) {
                 log.debug("No claims found in user in user attributes for user : " + requestMsgCtx.getAuthorizedUser());
@@ -379,7 +381,12 @@ public class DefaultOIDCClaimsCallbackHandler implements CustomClaimsCallbackHan
              */
             String latestAccessTokenHash = getLatestAccessTokenHash(requestMsgCtx);
             if (StringUtils.isNotBlank(latestAccessTokenHash)) {
-                userAttributes = getUserAttributesCachedAgainstToken(latestAccessTokenHash);
+                boolean isNonPersistentEnabled = OAuth2Util.isNonPersistentTokenEnabled(
+                        requestMsgCtx.getOauth2AccessTokenReqDTO().getClientId());
+                boolean isJWT = JWTUtils.isJWT(latestAccessTokenHash);
+                if (!isNonPersistentEnabled || isJWT) {
+                    userAttributes = getUserAttributesCachedAgainstToken(latestAccessTokenHash);
+                }
             }
 
             Object previousAccessTokenObject = requestMsgCtx.getProperty(RefreshGrantHandler.PREV_ACCESS_TOKEN);
@@ -391,12 +398,45 @@ public class DefaultOIDCClaimsCallbackHandler implements CustomClaimsCallbackHan
                 }
                 RefreshTokenValidationDataDO refreshTokenValidationDataDO =
                         (RefreshTokenValidationDataDO) previousAccessTokenObject;
-                userAttributes = getUserAttributesCachedAgainstToken(refreshTokenValidationDataDO.getAccessToken());
+                if (isEmpty(userAttributes)) {
+                    if (refreshTokenValidationDataDO.getAccessToken() != null) {
+                        userAttributes = getUserAttributesCachedAgainstToken(refreshTokenValidationDataDO
+                                .getAccessToken());
+                    } else if (refreshTokenValidationDataDO.getTokenId() != null) {
+                        userAttributes = getUserAttributesCachedAgainstTokenId(refreshTokenValidationDataDO
+                                .getTokenId());
+                    } else {
+                        userAttributes = new HashMap<>();
+                    }
+                }
                 requestMsgCtx.addProperty(OIDCConstants.HAS_NON_OIDC_CLAIMS,
                         isTokenHasCustomUserClaims(refreshTokenValidationDataDO));
             }
         }
         return userAttributes;
+    }
+
+    /**
+     * Get the user attributes cached against the token ID when access token is not persisted.
+     *
+     * @param tokenId Token Id
+     * @return Map of user attributes
+     */
+    private Map<ClaimMapping, String> getUserAttributesCachedAgainstTokenId(String tokenId) {
+
+        AuthorizationGrantCacheEntry cacheEntry;
+        if (log.isDebugEnabled()) {
+            if (IdentityUtil.isTokenLoggable(IdentityConstants.IdentityTokens.ACCESS_TOKEN)) {
+                log.debug("Retrieving user attributes cached against access token Id : "
+                        + tokenId);
+            } else {
+                log.debug("Retrieving user attributes cached against access token Id.");
+            }
+        }
+        // Since access token is not persisted, we are passing null as the grant cache key. User attributes will
+        // be cached against the token id in session store.
+        cacheEntry = AuthorizationGrantCache.getInstance().getValueFromCacheByTokenId(null, tokenId);
+        return cacheEntry == null ? new HashMap<>() : cacheEntry.getUserAttributes();
     }
 
     private Map<String, Object> retrieveClaimsForLocalUser(OAuthTokenReqMessageContext requestMsgCtx)
@@ -809,10 +849,12 @@ public class DefaultOIDCClaimsCallbackHandler implements CustomClaimsCallbackHan
      */
     private boolean isTokenHasCustomUserClaims(RefreshTokenValidationDataDO refreshTokenValidationDataDO) {
 
-        AuthorizationGrantCacheKey cacheKey = new AuthorizationGrantCacheKey(
-                refreshTokenValidationDataDO.getAccessToken());
+        AuthorizationGrantCacheKey cacheKey = null;
+        if (refreshTokenValidationDataDO.getAccessToken() != null) {
+            cacheKey = new AuthorizationGrantCacheKey(refreshTokenValidationDataDO.getAccessToken());
+        }
         AuthorizationGrantCacheEntry cacheEntry = AuthorizationGrantCache.getInstance()
-                .getValueFromCacheByToken(cacheKey);
+                .getValueFromCacheByTokenId(cacheKey, refreshTokenValidationDataDO.getTokenId());
         boolean hasNonOIDCClaims = cacheEntry != null && cacheEntry.isHasNonOIDCClaims();
 
         if (log.isDebugEnabled()) {
@@ -828,7 +870,9 @@ public class DefaultOIDCClaimsCallbackHandler implements CustomClaimsCallbackHan
      * @param accessToken Access token
      * @return User attributes cached against the access token
      */
-    private Map<ClaimMapping, String> getUserAttributesFromCacheUsingToken(String accessToken) {
+    private Map<ClaimMapping, String> getUserAttributesFromCacheUsingToken(String accessToken)
+            throws IdentityOAuth2Exception {
+
         if (log.isDebugEnabled()) {
             if (IdentityUtil.isTokenLoggable(IdentityConstants.IdentityTokens.ACCESS_TOKEN)) {
                 log.debug("Retrieving user attributes cached against access token: " + accessToken);
@@ -838,8 +882,13 @@ public class DefaultOIDCClaimsCallbackHandler implements CustomClaimsCallbackHan
         }
 
         AuthorizationGrantCacheKey cacheKey = new AuthorizationGrantCacheKey(accessToken);
-        AuthorizationGrantCacheEntry cacheEntry = AuthorizationGrantCache.getInstance()
-                .getValueFromCacheByToken(cacheKey);
+        AuthorizationGrantCacheEntry cacheEntry;
+        if (TokenMgtUtil.isNonPersistenceAccessToken(accessToken)) {
+            cacheEntry = AuthorizationGrantCache.getInstance().getValueFromCacheByTokenId(cacheKey,
+                    TokenMgtUtil.getTokenIDFromNonPersistenceAccessToken(accessToken));
+        } else {
+            cacheEntry = AuthorizationGrantCache.getInstance().getValueFromCacheByToken(cacheKey);
+        }
 
         return cacheEntry == null ? new HashMap<>() : cacheEntry.getUserAttributes();
     }

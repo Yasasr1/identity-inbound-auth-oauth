@@ -45,6 +45,8 @@ import org.wso2.carbon.identity.oauth.common.OAuthConstants;
 import org.wso2.carbon.identity.oauth.common.exception.InvalidOAuthClientException;
 import org.wso2.carbon.identity.oauth.config.OAuthServerConfiguration;
 import org.wso2.carbon.identity.oauth.dao.OAuthAppDO;
+import org.wso2.carbon.identity.oauth.tokenprocessor.HybridRefreshTokenGrantProcessor;
+import org.wso2.carbon.identity.oauth.tokenprocessor.RefreshTokenGrantProcessor;
 import org.wso2.carbon.identity.oauth2.IdentityOAuth2Exception;
 import org.wso2.carbon.identity.oauth2.OAuth2Constants;
 import org.wso2.carbon.identity.oauth2.ResponseHeader;
@@ -60,7 +62,9 @@ import org.wso2.carbon.identity.oauth2.token.OAuthTokenReqMessageContext;
 import org.wso2.carbon.identity.oauth2.token.OauthTokenIssuer;
 import org.wso2.carbon.identity.oauth2.token.bindings.TokenBinder;
 import org.wso2.carbon.identity.oauth2.token.bindings.TokenBinding;
+import org.wso2.carbon.identity.oauth2.util.JWTUtils;
 import org.wso2.carbon.identity.oauth2.util.OAuth2Util;
+import org.wso2.carbon.identity.oauth2.util.TokenMgtUtil;
 import org.wso2.carbon.identity.user.profile.mgt.association.federation.FederatedAssociationManager;
 import org.wso2.carbon.identity.user.profile.mgt.association.federation.exception.FederatedAssociationManagerException;
 import org.wso2.carbon.user.core.UserCoreConstants;
@@ -101,9 +105,8 @@ public class RefreshGrantHandler extends AbstractAuthorizationGrantHandler {
 
         super.validateGrant(tokReqMsgCtx);
         OAuth2AccessTokenReqDTO tokenReq = tokReqMsgCtx.getOauth2AccessTokenReqDTO();
-        RefreshTokenValidationDataDO validationBean =  OAuth2ServiceComponentHolder.getInstance()
-                .getRefreshTokenGrantProcessor().validateRefreshToken
-                        (tokReqMsgCtx);
+        RefreshTokenValidationDataDO validationBean = getRefreshTokenGrantProcessor(tokenReq.getRefreshToken())
+                .validateRefreshToken(tokReqMsgCtx);
 
         validateRefreshTokenInRequest(tokenReq, validationBean);
 
@@ -159,12 +162,12 @@ public class RefreshGrantHandler extends AbstractAuthorizationGrantHandler {
         RefreshTokenValidationDataDO validationBean = (RefreshTokenValidationDataDO) tokReqMsgCtx
                 .getProperty(PREV_ACCESS_TOKEN);
 
-        if (isRefreshTokenExpired(validationBean)) {
+        if (validationBean == null || isRefreshTokenExpired(validationBean)) {
             return handleError(OAuth2ErrorCodes.INVALID_GRANT, "Refresh token is expired.", tokenReq);
         }
 
-        AccessTokenDO accessTokenBean = OAuth2ServiceComponentHolder.getInstance()
-                .getRefreshTokenGrantProcessor().createAccessTokenBean(tokReqMsgCtx, tokenReq, validationBean,
+        AccessTokenDO accessTokenBean = getRefreshTokenGrantProcessor(tokenReq.getRefreshToken())
+                .createAccessTokenBean(tokReqMsgCtx, tokenReq, validationBean,
                         getTokenType());
         // sets accessToken, refreshToken and validity data
         setTokenData(accessTokenBean, tokReqMsgCtx, validationBean, tokenReq, accessTokenBean.getIssuedTime());
@@ -181,8 +184,8 @@ public class RefreshGrantHandler extends AbstractAuthorizationGrantHandler {
         }
 
         setTokenDataToMessageContext(tokReqMsgCtx, accessTokenBean);
-        OAuth2ServiceComponentHolder.getInstance()
-                .getRefreshTokenGrantProcessor().addUserAttributesToCache(accessTokenBean, tokReqMsgCtx);
+        getRefreshTokenGrantProcessor(tokenReq.getRefreshToken())
+                .addUserAttributesToCache(accessTokenBean, tokReqMsgCtx);
         return buildTokenResponse(tokReqMsgCtx, accessTokenBean);
     }
 
@@ -242,15 +245,17 @@ public class RefreshGrantHandler extends AbstractAuthorizationGrantHandler {
         id session id mapping in the token binding table. Here we are assigning the session id of the refreshed
         token as same as the previously issued access token.
         */
-        String sessionId = getSessionContextIdentifier(validationBean.getAccessToken());
-        if (sessionId == null) {
-            String oldTokenId = validationBean.getTokenId();
-            sessionId = OAuthTokenPersistenceFactory.getInstance()
-                    .getAccessTokenDAOImpl(tokReqMsgCtx.getOauth2AccessTokenReqDTO().getClientId())
-                    .getSessionIdentifierByTokenId(oldTokenId);
-        }
-        if (sessionId != null) {
-            tokReqMsgCtx.addProperty(SESSION_IDENTIFIER, sessionId);
+        if (StringUtils.isNotEmpty(validationBean.getAccessToken())) {
+            String sessionId = getSessionContextIdentifier(validationBean.getAccessToken());
+            if (sessionId == null) {
+                String oldTokenId = validationBean.getTokenId();
+                sessionId = OAuthTokenPersistenceFactory.getInstance()
+                        .getAccessTokenDAOImpl(tokReqMsgCtx.getOauth2AccessTokenReqDTO().getClientId())
+                        .getSessionIdentifierByTokenId(oldTokenId);
+            }
+            if (sessionId != null) {
+                tokReqMsgCtx.addProperty(SESSION_IDENTIFIER, sessionId);
+            }
         }
     }
 
@@ -284,7 +289,7 @@ public class RefreshGrantHandler extends AbstractAuthorizationGrantHandler {
             throws IdentityOAuth2Exception {
 
         validateRefreshTokenStatus(validationBean, tokenReq.getClientId());
-        if (OAuth2ServiceComponentHolder.getInstance().getRefreshTokenGrantProcessor()
+        if (getRefreshTokenGrantProcessor(tokenReq.getRefreshToken())
                 .isLatestRefreshToken(tokenReq, validationBean,
                         getUserStoreDomain(validationBean.getAuthorizedUser()))) {
             return true;
@@ -417,7 +422,7 @@ public class RefreshGrantHandler extends AbstractAuthorizationGrantHandler {
             }
         }
 
-        OAuth2ServiceComponentHolder.getInstance().getRefreshTokenGrantProcessor()
+        getRefreshTokenGrantProcessor(tokReqMsgCtx.getOauth2AccessTokenReqDTO().getRefreshToken())
                 .persistNewToken(tokReqMsgCtx, accessTokenBean, userStoreDomain, clientId);
         updateCacheIfEnabled(tokReqMsgCtx, accessTokenBean, clientId, oldAccessToken);
     }
@@ -442,10 +447,12 @@ public class RefreshGrantHandler extends AbstractAuthorizationGrantHandler {
             OAuthCacheKey oauthCacheKey = new OAuthCacheKey(cacheKeyString);
             OAuthCache.getInstance().clearCacheEntry(oauthCacheKey, accessTokenBean.getAuthzUser().getTenantDomain());
 
-            // Remove old access token from the AccessTokenCache
-            OAuthCacheKey accessTokenCacheKey = new OAuthCacheKey(oldAccessToken.getAccessToken());
-            OAuthCache.getInstance().clearCacheEntry(accessTokenCacheKey,
-                    oldAccessToken.getAuthorizedUser().getTenantDomain());
+            if (oldAccessToken.getAccessToken() != null) {
+                // Remove old access token from the AccessTokenCache
+                OAuthCacheKey accessTokenCacheKey = new OAuthCacheKey(oldAccessToken.getAccessToken());
+                OAuthCache.getInstance().clearCacheEntry(accessTokenCacheKey,
+                        oldAccessToken.getAuthorizedUser().getTenantDomain());
+            }
             AccessTokenDO tokenToCache = AccessTokenDO.clone(accessTokenBean);
             OauthTokenIssuer oauthTokenIssuer;
             try {
@@ -562,8 +569,10 @@ public class RefreshGrantHandler extends AbstractAuthorizationGrantHandler {
         OAuthCache.getInstance().clearCacheEntry(oauthCacheKey, tenantDomain);
 
         // Remove the old access token from the AccessTokenCache
-        OAuthCacheKey accessTokenCacheKey = new OAuthCacheKey(accessToken);
-        OAuthCache.getInstance().clearCacheEntry(accessTokenCacheKey, tenantDomain);
+        if (StringUtils.isNotBlank(accessToken)) {
+            OAuthCacheKey accessTokenCacheKey = new OAuthCacheKey(accessToken);
+            OAuthCache.getInstance().clearCacheEntry(accessTokenCacheKey, tenantDomain);
+        }
     }
 
     private boolean isRefreshTokenExpired(RefreshTokenValidationDataDO validationBean) {
@@ -829,5 +838,25 @@ public class RefreshGrantHandler extends AbstractAuthorizationGrantHandler {
         } catch (IdentityOAuth2Exception e) {
             log.error("Error while revoking SSO session bound access token.", e);
         }
+    }
+
+    /**
+     * Get the RefreshTokenGrantProcessor.
+     *
+     * @return RefreshTokenGrantProcessor
+     */
+    private RefreshTokenGrantProcessor getRefreshTokenGrantProcessor(String refreshToken) {
+
+        if (TokenMgtUtil.isHybridPersistedToken(refreshToken)) {
+            return new HybridRefreshTokenGrantProcessor();
+        }
+
+        if (JWTUtils.isJWT(refreshToken)) {
+            log.debug("Refresh token is JWT, should be with non persistent access token. " +
+                    "Hence, validating using hybrid persistent token provider.");
+            return new HybridRefreshTokenGrantProcessor();
+        }
+
+        return OAuth2ServiceComponentHolder.getInstance().getRefreshTokenGrantProcessor();
     }
 }
