@@ -118,8 +118,6 @@ public class HybridRefreshTokenGrantProcessor implements RefreshTokenGrantProces
                     revokedTokenDao.addRevokedToken(oldRefreshToken.getRefreshToken(), clientId,
                             oAuthAppDO.get().getRefreshTokenExpiryTime());
                 }
-
-
             }
         } else {
             // Log debug message if OAuth app is not found, and throw an exception.

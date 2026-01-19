@@ -204,6 +204,7 @@ public class HybridPersistenceTokenProvider implements TokenProvider {
                 validationDataDO.setIsConsentedToken(consentedToken);
             } else {
                 // Handle missing claim case
+                validationDataDO.setIsConsentedToken(false);
                 LOG.debug("Consented token claim is missing in the non persistent access token.");
             }
             RealmService realmService = OAuthComponentServiceHolder.getInstance().getRealmService();
@@ -311,6 +312,7 @@ public class HybridPersistenceTokenProvider implements TokenProvider {
             validationDataDO.setConsentedToken(consentedToken);
         } else {
             // Handle missing claim case
+            validationDataDO.setConsentedToken(false);
             LOG.debug("Consented token claim is missing in the non persistent access token.");
         }
 
@@ -450,6 +452,7 @@ public class HybridPersistenceTokenProvider implements TokenProvider {
             validationDataDO.setIsConsentedToken(consentedToken);
         } else {
             // Handle missing claim case
+            validationDataDO.setIsConsentedToken(false);
             LOG.debug("Consented token claim is missing in the non persistent access token.");
         }
         RealmService realmService = OAuthComponentServiceHolder.getInstance().getRealmService();
