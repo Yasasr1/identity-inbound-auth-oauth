@@ -4075,7 +4075,8 @@ public class OAuth2Util {
     public static String getAccessTokenIdentifier(OAuth2TokenValidationResponseDTO tokenResponse)
             throws UserInfoEndpointException {
 
-        if (tokenResponse.getAuthorizationContextToken().getAccessTokenDO() != null) {
+        if (tokenResponse.getAuthorizationContextToken() != null &&
+                tokenResponse.getAuthorizationContextToken().getAccessTokenDO() != null) {
             return tokenResponse.getAuthorizationContextToken().getAccessTokenDO().getAccessToken();
         }
 
@@ -4109,7 +4110,8 @@ public class OAuth2Util {
                                                            boolean checkIndirectRevocation)
             throws UserInfoEndpointException {
 
-        if (tokenResponse.getAuthorizationContextToken().getAccessTokenDO() != null) {
+        if (tokenResponse.getAuthorizationContextToken() != null &&
+                tokenResponse.getAuthorizationContextToken().getAccessTokenDO() != null) {
             return Optional.ofNullable(tokenResponse.getAuthorizationContextToken().getAccessTokenDO());
         }
 
