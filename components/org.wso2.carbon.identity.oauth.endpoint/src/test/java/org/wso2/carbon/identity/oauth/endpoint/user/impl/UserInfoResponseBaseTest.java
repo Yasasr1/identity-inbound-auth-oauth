@@ -27,6 +27,7 @@ import org.wso2.carbon.identity.oauth.config.OAuthServerConfiguration;
 import org.wso2.carbon.identity.oauth.dao.OAuthAppDO;
 import org.wso2.carbon.identity.oauth.endpoint.util.ClaimUtil;
 import org.wso2.carbon.identity.oauth.user.UserInfoClaimRetriever;
+import org.wso2.carbon.identity.oauth.user.UserInfoEndpointException;
 import org.wso2.carbon.identity.oauth2.IdentityOAuth2Exception;
 import org.wso2.carbon.identity.oauth2.dto.OAuth2TokenValidationResponseDTO;
 import org.wso2.carbon.identity.oauth2.internal.OAuth2ServiceComponentHolder;
@@ -50,6 +51,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Matchers.any;
@@ -63,6 +65,7 @@ import static org.powermock.api.mockito.PowerMockito.spy;
 import static org.powermock.api.mockito.PowerMockito.when;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.fail;
 import static org.wso2.carbon.base.MultitenantConstants.SUPER_TENANT_DOMAIN_NAME;
 
 /**
@@ -363,6 +366,14 @@ public class UserInfoResponseBaseTest extends PowerMockTestCase {
 
         AccessTokenDO accessTokenDO = new AccessTokenDO();
         accessTokenDO.setAuthzUser(authorizedUser);
+        accessTokenDO.setAccessToken(accessToken);
+        Optional<AccessTokenDO> optionalAccessTokenDO = Optional.of(accessTokenDO);
+        try {
+            when(OAuth2Util.getAccessTokenDO(any(OAuth2TokenValidationResponseDTO.class), anyBoolean()))
+                    .thenReturn(optionalAccessTokenDO);
+        } catch (UserInfoEndpointException e) {
+            fail("UserInfoEndpointException thrown while mocking OAuth2Util.getAccessTokenDO: " + e.getMessage());
+        }
         when(OAuth2Util.getAccessTokenDOfromTokenIdentifier(accessToken)).thenReturn(accessTokenDO);
 
         when(OAuth2Util.getAuthenticatedUser(any(AccessTokenDO.class))).thenCallRealMethod();
