@@ -44,6 +44,7 @@ import org.wso2.carbon.identity.oauth.common.OAuthConstants;
 import org.wso2.carbon.identity.oauth.common.exception.InvalidOAuthClientException;
 import org.wso2.carbon.identity.oauth.config.OAuthServerConfiguration;
 import org.wso2.carbon.identity.oauth.dao.OAuthAppDO;
+import org.wso2.carbon.identity.oauth.internal.OAuthComponentServiceHolder;
 import org.wso2.carbon.identity.oauth2.IdentityOAuth2Exception;
 import org.wso2.carbon.identity.oauth2.OAuth2Constants;
 import org.wso2.carbon.identity.oauth2.authz.OAuthAuthzReqMessageContext;
@@ -54,6 +55,7 @@ import org.wso2.carbon.identity.oauth2.token.handlers.grant.AuthorizationGrantHa
 import org.wso2.carbon.identity.oauth2.util.OAuth2Util;
 import org.wso2.carbon.identity.openidconnect.CustomClaimsCallbackHandler;
 import org.wso2.carbon.registry.core.utils.UUIDGenerator;
+import org.wso2.carbon.user.core.common.AbstractUserStoreManager;
 
 import java.security.Key;
 import java.security.cert.Certificate;
@@ -1192,7 +1194,8 @@ public class JWTTokenIssuer extends OauthTokenIssuerImpl {
 
         switch (userType) {
             case APPLICATION_USER:
-                addApplicationUserInfo(jwtClaimsSetBuilder, authenticatedUser);
+                int tenantId = IdentityTenantUtil.getTenantId(authenticatedUser.getTenantDomain());
+                addApplicationUserInfo(jwtClaimsSetBuilder, authenticatedUser, tenantId);
                 if (tokenReqMessageContext != null) {
                     jwtClaimsSetBuilder.claim(OAuthConstants.NonPersistenceConstants.GRANT_TYPE,
                             tokenReqMessageContext.getOauth2AccessTokenReqDTO().getGrantType());
@@ -1241,11 +1244,13 @@ public class JWTTokenIssuer extends OauthTokenIssuerImpl {
      * If the user ID cannot be found, it logs an error and falls back to using the username.
      * <p>
      * For local users, the method similarly attempts to use the user ID, falling back to username if needed.
+     *  @param jwtClaimsSetBuilder The JWT claims set builder to which user information claims will be added.
      *
-     * @param jwtClaimsSetBuilder The JWT claims set builder to which user information claims will be added.
-     * @param authenticatedUser   The authenticated user object containing user identity information.
+     * @param authenticatedUser The authenticated user object containing user identity information.
+     * @param tenantId
      */
-    private void addApplicationUserInfo(JWTClaimsSet.Builder jwtClaimsSetBuilder, AuthenticatedUser authenticatedUser) {
+    private void addApplicationUserInfo(JWTClaimsSet.Builder jwtClaimsSetBuilder, AuthenticatedUser authenticatedUser,
+                                        int tenantId) throws IdentityOAuth2Exception {
 
 
         if (authenticatedUser.isFederatedUser()) {
@@ -1267,18 +1272,87 @@ public class JWTTokenIssuer extends OauthTokenIssuerImpl {
             return;
         }
 
+        String userStoreDomain = authenticatedUser.getUserStoreDomain();
+        String username = authenticatedUser.getUserName();
+
         try {
-            String userId = authenticatedUser.getUserId();
-            jwtClaimsSetBuilder.claim(OAuthConstants.NonPersistenceConstants.ENTITY_ID, userId);
-            jwtClaimsSetBuilder.claim(OAuthConstants.NonPersistenceConstants.ENTITY_TYPE,
-                    OAuthConstants.NonPersistenceConstants.ENTITY_ID_TYPE_USER_ID);
-        } catch (UserIdNotFoundException e) {
-            log.error("User id cannot be found for user: " +
-                    authenticatedUser.getLoggableMaskedUserId() + " Using username as ENTITY_TYPE.");
-            jwtClaimsSetBuilder.claim(OAuthConstants.NonPersistenceConstants.ENTITY_ID,
-                    authenticatedUser.toFullQualifiedUsername());
-            jwtClaimsSetBuilder.claim(OAuthConstants.NonPersistenceConstants.ENTITY_TYPE,
-                    OAuthConstants.NonPersistenceConstants.ENTITY_ID_TYPE_USER_NAME);
+            // Retrieve the appropriate user store manager
+            org.wso2.carbon.user.api.UserStoreManager userStoreManager = getUserStoreManager(tenantId, userStoreDomain);
+
+            // Attempt to get the user ID if the manager supports the operation
+            if (userStoreManager instanceof AbstractUserStoreManager) {
+
+                if (((AbstractUserStoreManager) userStoreManager).isUniqueUserIdEnabled()) {
+                    try {
+                        jwtClaimsSetBuilder.claim(OAuthConstants.NonPersistenceConstants.ENTITY_ID,
+                                authenticatedUser.getUserId());
+                        jwtClaimsSetBuilder.claim(OAuthConstants.NonPersistenceConstants.ENTITY_TYPE,
+                                OAuthConstants.NonPersistenceConstants.ENTITY_ID_TYPE_USER_ID);
+                    } catch (UserIdNotFoundException e) {
+                        // Handle errors during user ID resolution
+                        if (log.isDebugEnabled()) {
+                            log.debug("Error occurred while resolving user ID for user: " + username, e);
+                        }
+                        throw new IdentityOAuth2Exception("Error occurred while resolving user ID for user: "
+                                + username, e);
+                    }
+                } else {
+                    jwtClaimsSetBuilder.claim(OAuthConstants.NonPersistenceConstants.ENTITY_ID,
+                            authenticatedUser.toFullQualifiedUsername());
+                    jwtClaimsSetBuilder.claim(OAuthConstants.NonPersistenceConstants.ENTITY_TYPE,
+                            OAuthConstants.NonPersistenceConstants.ENTITY_ID_TYPE_USER_NAME);
+                }
+            } else {
+                // Log debug info if unsupported manager type
+                if (log.isDebugEnabled()) {
+                    log.debug(String.format("User store manager for user '%s' in domain '%s' is not an instance of " +
+                            "AbstractUserStoreManager.", username, userStoreDomain));
+                }
+
+                // Throw exception if the user store manager does not support user ID resolution
+                throw new IdentityOAuth2Exception(
+                        "Unable to resolve unique user ID for user: " + username + ".");
+            }
+        } catch (org.wso2.carbon.user.api.UserStoreException e) {
+            // Handle errors when retrieving the user store manager
+            throw new IdentityOAuth2Exception("Error occurred while retrieving user store manager to resolve user " +
+                    "ID for: " + username, e);
         }
+    }
+
+    /**
+     * Retrieves the appropriate UserStoreManager for the given tenant and user store domain.
+     *
+     * @param tenantId         The tenant ID.
+     * @param userStoreDomain  The domain of the user store (e.g., "PRIMARY", "SECONDARY").
+     * @return The matching UserStoreManager instance, or the primary one if the domain is not found or unsupported.
+     * @throws org.wso2.carbon.user.api.UserStoreException If an error occurs while accessing the realm or user store.
+     */
+    private org.wso2.carbon.user.api.UserStoreManager getUserStoreManager(int tenantId, String userStoreDomain)
+            throws org.wso2.carbon.user.api.UserStoreException {
+
+        // Retrieve the primary user store manager for the given tenant
+        org.wso2.carbon.user.api.UserStoreManager userStoreManager =
+                OAuthComponentServiceHolder.getInstance()
+                        .getRealmService()
+                        .getTenantUserRealm(tenantId)
+                        .getUserStoreManager();
+
+        // If the user store manager supports secondary user stores, return the specific one by domain
+        if (userStoreManager instanceof org.wso2.carbon.user.core.UserStoreManager) {
+            return ((org.wso2.carbon.user.core.UserStoreManager) userStoreManager)
+                    .getSecondaryUserStoreManager(userStoreDomain);
+        }
+
+        // Log a debug message if the user store manager is not of the expected type
+        if (log.isDebugEnabled()) {
+            log.debug(String.format("Unable to resolve the user store manager for domain: '%s'. " +
+                    "The provided user store manager instance is of type: %s, which is not an instance of " +
+                    "org.wso2.carbon.user.core.UserStoreManager. Returning the default user store manager " +
+                    "instead.", userStoreDomain, userStoreManager.getClass().getName()));
+        }
+
+        // Fallback to the original (possibly primary) user store manager
+        return userStoreManager;
     }
 }
