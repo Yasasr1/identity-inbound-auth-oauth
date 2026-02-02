@@ -440,7 +440,7 @@ public class AccessTokenDAOImpl extends AbstractOAuthDAO implements AccessTokenD
                 sql = sql.replace(AUTHZ_USER, LOWER_AUTHZ_USER);
             }
 
-            String hashedScope = OAuth2Util.hashScopes(scope);
+            String hashedScope = OAuth2Util.hashScopesWithoutTrimming(scope);
             if (hashedScope == null) {
                 sql = sql.replace("TOKEN_SCOPE_HASH=?", "TOKEN_SCOPE_HASH IS NULL");
             }
@@ -753,7 +753,7 @@ public class AccessTokenDAOImpl extends AbstractOAuthDAO implements AccessTokenD
                 sql = sql.replace(AUTHZ_USER, LOWER_AUTHZ_USER);
             }
 
-            String hashedScope = OAuth2Util.hashScopes(scope);
+            String hashedScope = OAuth2Util.hashScopesWithoutTrimming(scope);
             if (hashedScope == null) {
                 sql = sql.replace("TOKEN_SCOPE_HASH=?", "TOKEN_SCOPE_HASH IS NULL");
             }

@@ -498,6 +498,20 @@ public class OAuth2Util {
     }
 
     /**
+     * Build a scope array without trimming the scope string.
+     *
+     * @param scopeStr Scope string.
+     * @return An array of scopes.
+     */
+    public static String[] buildScopeArrayWithoutTrimming(String scopeStr) {
+
+        if (StringUtils.isNotBlank(scopeStr)) {
+            return scopeStr.split(" ");
+        }
+        return new String[0];
+    }
+
+    /**
      * Authenticate the OAuth Consumer
      *
      * @param clientId             Consumer Key/Id
@@ -1290,6 +1304,23 @@ public class OAuth2Util {
         if (scope != null) {
             //first converted to an array to sort the scopes
             return DigestUtils.md5Hex(OAuth2Util.buildScopeString(buildScopeArray(scope)));
+        } else {
+            return null;
+        }
+    }
+
+    /**
+     * Hash scopes without trimming leading/trailing whitespaces.
+     *
+     * @param scope Scopes string.
+     * @return MD5 hash of the scopes.
+     */
+    @SuppressFBWarnings("WEAK_MESSAGE_DIGEST_MD5")
+    public static String hashScopesWithoutTrimming(String scope) {
+
+        if (scope != null) {
+            //first converted to an array to sort the scopes
+            return DigestUtils.md5Hex(OAuth2Util.buildScopeString(buildScopeArrayWithoutTrimming(scope)));
         } else {
             return null;
         }
