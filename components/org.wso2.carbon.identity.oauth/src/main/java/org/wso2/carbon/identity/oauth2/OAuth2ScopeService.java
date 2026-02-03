@@ -49,7 +49,7 @@ import static org.wso2.carbon.identity.oauth2.Oauth2ScopeConstants.ErrorMessages
  */
 public class OAuth2ScopeService {
     private static final Log log = LogFactory.getLog(OAuth2ScopeService.class);
-    private static final String SCOPE_VALIDATION_REGEX = "^[^?#/()]*$";
+    private static final String SCOPE_VALIDATION_REGEX = "^[^?#()]*$";
 
     /**
      * Register a scope with the bindings

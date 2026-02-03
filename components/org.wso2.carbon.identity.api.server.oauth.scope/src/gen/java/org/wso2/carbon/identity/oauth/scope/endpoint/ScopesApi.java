@@ -37,9 +37,9 @@ public class ScopesApi  {
         
         @io.swagger.annotations.ApiResponse(code = 500, message = "Server Error") })
 
-    public Response deleteScope(@ApiParam(value = "Name of the scope that is to be deleted",required=true ) @PathParam("name")  String name)
+    public Response deleteScope(@ApiParam(value = "Name of the scope that is to be deleted",required=true ) @PathParam("name")  String name, @QueryParam("encoded")  Boolean encoded)
     {
-    return delegate.deleteScope(name);
+    return delegate.deleteScope(name, encoded);
     }
     @GET
     @Path("/name/{name}")
@@ -53,9 +53,9 @@ public class ScopesApi  {
         
         @io.swagger.annotations.ApiResponse(code = 500, message = "Server Error") })
 
-    public Response getScope(@ApiParam(value = "Name of the scope that is to be retrieved",required=true ) @PathParam("name")  String name)
+    public Response getScope(@ApiParam(value = "Name of the scope that is to be retrieved",required=true ) @PathParam("name")  String name, @QueryParam("encoded")  Boolean encoded)
     {
-    return delegate.getScope(name);
+    return delegate.getScope(name, encoded);
     }
     @GET
     
@@ -88,9 +88,9 @@ public class ScopesApi  {
         
         @io.swagger.annotations.ApiResponse(code = 500, message = "Server Error") })
 
-    public Response isScopeExists(@ApiParam(value = "Name of the scope that is to be checked",required=true ) @PathParam("name")  String name)
+    public Response isScopeExists(@ApiParam(value = "Name of the scope that is to be checked",required=true ) @PathParam("name")  String name,  @QueryParam("includeOIDCScopes")  Boolean includeOIDCScopes, @QueryParam("encoded")  Boolean encoded)
     {
-    return delegate.isScopeExists(name);
+    return delegate.isScopeExists(name, includeOIDCScopes, encoded);
     }
     @POST
     
@@ -123,9 +123,10 @@ public class ScopesApi  {
         @io.swagger.annotations.ApiResponse(code = 500, message = "Server Error") })
 
     public Response updateScope(@ApiParam(value = "updated scope" ,required=true ) ScopeToUpdateDTO scope,
-    @ApiParam(value = "Name of the scope that is to be updated",required=true ) @PathParam("name")  String name)
+    @ApiParam(value = "Name of the scope that is to be updated",required=true ) @PathParam("name")  String name,
+            @QueryParam("encoded")  Boolean encoded)
     {
-    return delegate.updateScope(scope,name);
+    return delegate.updateScope(scope,name, encoded);
     }
 }
 
