@@ -397,10 +397,18 @@ public class ScopesApiServiceImpl extends ScopesApiService {
      */
     private String decodeScopeName(String name, Boolean encoded) {
         if (encoded != null && encoded) {
-            return new String(
-                    Base64.getUrlDecoder().decode(name),
-                    StandardCharsets.UTF_8
-            );
+            try {
+                return new String(
+                        Base64.getUrlDecoder().decode(name),
+                        StandardCharsets.UTF_8
+                );
+            } catch (IllegalArgumentException e) {
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("Error decoding scope name: " + name, e);
+                }
+                // Return the original name if decoding fails
+                return name;
+            }
         }
         return name;
     }
