@@ -222,7 +222,7 @@ public class HybridPersistenceTokenProvider implements TokenProvider {
             }
             validationDataDO.setTokenId(TokenMgtUtil.getTokenId(claimsSet));
             // Add the token back to the cache in the case of a cache miss.
-            TokenMgtUtil.addTokenToCache(accessTokenIdentifier, validationDataDO);
+            TokenMgtUtil.addTokenToCacheOnRead(accessTokenIdentifier, validationDataDO);
         }
         return validationDataDO;
     }

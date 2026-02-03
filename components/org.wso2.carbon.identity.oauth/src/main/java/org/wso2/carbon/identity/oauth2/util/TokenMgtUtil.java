@@ -440,6 +440,29 @@ public class TokenMgtUtil {
     }
 
     /**
+     * Adds an access token and its associated information to the OAuth cache for efficient retrieval during a READ
+     * operation.
+     *
+     * @param accessTokenIdentifier The identifier of the access token to be cached.
+     * @param accessTokenDO         The AccessTokenDO (Access Token Data Object) containing information about the
+     *                              access token.
+     */
+    public static void addTokenToCacheOnRead(String accessTokenIdentifier, AccessTokenDO accessTokenDO) {
+
+        if (OAuthCache.getInstance().isEnabled()) {
+            OAuthCache.getInstance().addToCacheOnRead(getOAuthCacheKey(accessTokenIdentifier), accessTokenDO);
+            if (LOG.isDebugEnabled()) {
+                if (IdentityUtil.isTokenLoggable(IdentityConstants.IdentityTokens.ACCESS_TOKEN)) {
+                    LOG.debug(String.format("[AddToCacheOnRead] Access token(hashed): %s added to OAuthCache.",
+                            DigestUtils.sha256Hex(accessTokenIdentifier)));
+                } else {
+                    LOG.debug("[AddToCacheOnRead] Access token added to OAuthCache.");
+                }
+            }
+        }
+    }
+
+    /**
      * Get OAuth cache key for access token identifier.
      *
      * @param accessTokenIdentifier Access token ID

@@ -91,6 +91,23 @@ public class AuthorizationGrantCache extends
     }
 
     /**
+     * Add a cache entry by access token during a READ operation.
+     *
+     * @param key   Key which cache entry is indexed.
+     * @param entry Actual object where cache entry is placed.
+     */
+    public void addToCacheByTokenOnRead(AuthorizationGrantCacheKey key, AuthorizationGrantCacheEntry entry) {
+
+        super.addToCacheOnRead(key, entry);
+        String tokenId = entry.getTokenId();
+        if (tokenId == null) {
+            tokenId = replaceFromTokenId(key.getUserAttributesId());
+            entry.setTokenId(tokenId);
+        }
+        storeToSessionStore(tokenId, entry);
+    }
+
+    /**
      * Retrieves cache entry by token id.
      *
      * @param key     AuthorizationGrantCacheKey
@@ -173,6 +190,21 @@ public class AuthorizationGrantCache extends
      */
     public void addToCacheByCode(AuthorizationGrantCacheKey key, AuthorizationGrantCacheEntry entry) {
         super.addToCache(key, entry);
+        long validityPeriodNano = TimeUnit.SECONDS.toNanos(
+                OAuthServerConfiguration.getInstance().getAuthorizationCodeValidityPeriodInSeconds());
+        entry.setValidityPeriod(validityPeriodNano);
+        storeToSessionStore(entry.getCodeId(), entry);
+    }
+
+    /**
+     * Add a cache entry by authorization code during a READ operation.
+     *
+     * @param key   Key which cache entry is indexed.
+     * @param entry Actual object where cache entry is placed.
+     */
+    public void addToCacheByCodeOnRead(AuthorizationGrantCacheKey key, AuthorizationGrantCacheEntry entry) {
+
+        super.addToCacheOnRead(key, entry);
         long validityPeriodNano = TimeUnit.SECONDS.toNanos(
                 OAuthServerConfiguration.getInstance().getAuthorizationCodeValidityPeriodInSeconds());
         entry.setValidityPeriod(validityPeriodNano);

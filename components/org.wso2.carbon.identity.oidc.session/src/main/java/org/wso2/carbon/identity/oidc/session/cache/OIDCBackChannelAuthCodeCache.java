@@ -77,6 +77,24 @@ public class OIDCBackChannelAuthCodeCache extends AuthenticationBaseCache<OIDCBa
     }
 
     /**
+     * Adds session information to the cache during a READ operation.
+     * Cache key includes authorization code.
+     * Cache entry includes session id or sid claim which is unique for all RPs belong to same browser session.
+     *
+     * @param key   Key which cache entry is indexed.
+     * @param entry Actual object where cache entry is placed.
+     */
+    @Override
+    public void addToCacheOnRead(OIDCBackChannelAuthCodeCacheKey key, OIDCBackChannelAuthCodeCacheEntry entry) {
+
+        super.addToCacheOnRead(key, entry);
+        SessionDataStore.getInstance().storeSessionData(key.getAuthCode(), OIDC_BACKCHANNEL_DATA_CACHE_NAME, entry);
+        if (log.isDebugEnabled()) {
+            log.debug("[AddToCacheOnRead] SessionID added to cache and persistence queue.");
+        }
+    }
+
+    /**
      * Retrieve the sessionid information from the cache.
      * At a cache miss data is loaded from the persistence store.
      *
