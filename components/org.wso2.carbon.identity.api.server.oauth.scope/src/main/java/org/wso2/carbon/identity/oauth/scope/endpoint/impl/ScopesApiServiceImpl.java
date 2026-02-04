@@ -16,6 +16,7 @@
 
 package org.wso2.carbon.identity.oauth.scope.endpoint.impl;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.cxf.jaxrs.impl.UriInfoImpl;
@@ -396,6 +397,12 @@ public class ScopesApiServiceImpl extends ScopesApiService {
      * @return Decoded scope name if encoded is true, otherwise returns the original name
      */
     private String decodeScopeName(String name, Boolean encoded) {
+        if (name == null || StringUtils.isBlank(name)) {
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Scope name is null, empty, or blank");
+            }
+            return name;
+        }
         if (encoded != null && encoded) {
             try {
                 return new String(
