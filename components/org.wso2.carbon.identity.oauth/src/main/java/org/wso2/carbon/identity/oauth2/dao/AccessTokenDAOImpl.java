@@ -75,6 +75,7 @@ import static org.wso2.carbon.identity.oauth.common.OAuthConstants.TokenBindings
 import static org.wso2.carbon.identity.oauth2.dao.SQLQueries.GET_ACCESS_TOKENS_BY_BINDING_REFERENCE;
 import static org.wso2.carbon.identity.oauth2.dao.SQLQueries.RETRIEVE_TOKEN_BINDING_BY_TOKEN_ID;
 import static org.wso2.carbon.identity.oauth2.dao.SQLQueries.STORE_TOKEN_BINDING;
+import static org.wso2.carbon.identity.oauth2.util.OAuth2Util.hashScopesWithoutTrimmingEnabled;
 
 /**
  * Access token related data access object implementation.
@@ -440,7 +441,13 @@ public class AccessTokenDAOImpl extends AbstractOAuthDAO implements AccessTokenD
                 sql = sql.replace(AUTHZ_USER, LOWER_AUTHZ_USER);
             }
 
-            String hashedScope = OAuth2Util.hashScopesWithoutTrimming(scope);
+            String hashedScope;
+            if (hashScopesWithoutTrimmingEnabled()) {
+                hashedScope = OAuth2Util.hashScopesWithoutTrimming(scope);
+            } else {
+                hashedScope = OAuth2Util.hashScopes(scope);
+            }
+
             if (hashedScope == null) {
                 sql = sql.replace("TOKEN_SCOPE_HASH=?", "TOKEN_SCOPE_HASH IS NULL");
             }
@@ -753,7 +760,13 @@ public class AccessTokenDAOImpl extends AbstractOAuthDAO implements AccessTokenD
                 sql = sql.replace(AUTHZ_USER, LOWER_AUTHZ_USER);
             }
 
-            String hashedScope = OAuth2Util.hashScopesWithoutTrimming(scope);
+            String hashedScope;
+            if (hashScopesWithoutTrimmingEnabled()) {
+                hashedScope = OAuth2Util.hashScopesWithoutTrimming(scope);
+            } else {
+                hashedScope = OAuth2Util.hashScopes(scope);
+            }
+
             if (hashedScope == null) {
                 sql = sql.replace("TOKEN_SCOPE_HASH=?", "TOKEN_SCOPE_HASH IS NULL");
             }
