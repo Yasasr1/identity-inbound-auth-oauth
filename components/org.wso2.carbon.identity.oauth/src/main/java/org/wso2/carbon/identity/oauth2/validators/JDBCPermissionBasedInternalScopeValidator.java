@@ -480,7 +480,7 @@ public class JDBCPermissionBasedInternalScopeValidator {
             allScopes = OAuthTokenPersistenceFactory.getInstance().getOAuthScopeDAO().getScopes(tenantId,
                     PERMISSION_BINDING_TYPE);
             if (CollectionUtils.isNotEmpty(allScopes)) {
-                OAuthScopeBindingCache.getInstance().addToCache(new OAuthScopeBindingCacheKey(PERMISSION_BINDING_TYPE
+                OAuthScopeBindingCache.getInstance().addToCacheOnRead(new OAuthScopeBindingCacheKey(PERMISSION_BINDING_TYPE
                 ), allScopes.toArray(new Scope[0]), tenantId);
             }
         }

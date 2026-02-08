@@ -551,7 +551,7 @@ public class ResponseTypeHandlerUtil {
             if (TOKEN_STATE_ACTIVE.equals(existingToken.getTokenState()) && expireTime != 0 && cacheEnabled) {
                 // Active token retrieved from db, adding to cache if cacheEnabled
                 try {
-                    addTokenToCache(getOAuthCacheKey(consumerKey, scope, authorizedUser.getUserId(),
+                    addTokenToCacheOnRead(getOAuthCacheKey(consumerKey, scope, authorizedUser.getUserId(),
                             OAuth2Util.getAuthenticatedIDP(authorizedUser)), existingToken);
                 } catch (UserIdNotFoundException e) {
                     throw new IdentityOAuth2Exception("Error occurred while retrieving the user id for user: "
@@ -1072,6 +1072,23 @@ public class ResponseTypeHandlerUtil {
             if (IdentityUtil.isTokenLoggable(IdentityConstants.IdentityTokens.ACCESS_TOKEN)) {
                 log.debug("Access token was added to OAuthCache for cache key : " + accessTokenCacheKey
                         .getCacheKeyString());
+            }
+        }
+    }
+
+    private static void addTokenToCacheOnRead(OAuthCacheKey cacheKey, AccessTokenDO tokenBean) {
+
+        OAuthCache.getInstance().addToCacheOnRead(cacheKey, tokenBean);
+        // Adding AccessTokenDO to improve validation performance.
+        OAuthCacheKey accessTokenCacheKey = new OAuthCacheKey(tokenBean.getAccessToken());
+        OAuthCache.getInstance().addToCacheOnRead(accessTokenCacheKey, tokenBean);
+        if (log.isDebugEnabled()) {
+            log.debug("[AddToCacheOnRead] Access token info was added to the cache for cache key : " +
+                    cacheKey.getCacheKeyString());
+            if (IdentityUtil.isTokenLoggable(IdentityConstants.IdentityTokens.ACCESS_TOKEN)) {
+                log.debug(
+                        "[AddToCacheOnRead] Access token was added to OAuthCache for cache key : " + accessTokenCacheKey
+                                .getCacheKeyString());
             }
         }
     }

@@ -61,6 +61,20 @@ public class SessionDataCache extends AuthenticationBaseCache<SessionDataCacheKe
         }
     }
 
+    /**
+     * Adds a session data cache entry in READ operation.
+     *
+     * @param key the session data cache key identifying the entry
+     * @param entry the session data to add to the cache and optionally persist
+     */
+    public void addToCacheOnRead(SessionDataCacheKey key, SessionDataCacheEntry entry) {
+
+        super.addToCacheOnRead(key, entry);
+        if (isTemporarySessionDataPersistEnabled) {
+            SessionDataStore.getInstance().storeSessionData(key.getSessionDataId(), SESSION_DATA_CACHE_NAME, entry);
+        }
+    }
+
     public SessionDataCacheEntry getValueFromCache(SessionDataCacheKey key) {
         SessionDataCacheEntry cacheEntry = super.getValueFromCache(key);
         if (cacheEntry == null && isTemporarySessionDataPersistEnabled) {

@@ -60,6 +60,18 @@ public class OIDCSessionDataCache extends AuthenticationBaseCache<OIDCSessionDat
     }
 
     /**
+     * Add OIDCSessionDataCache to cache during a READ operation.
+     *
+     * @param key   OIDCSessionDataCacheKey.
+     * @param entry OIDCSessionDataCacheEntry.
+     */
+    public void addToCacheOnRead(OIDCSessionDataCacheKey key, OIDCSessionDataCacheEntry entry) {
+
+        super.addToCacheOnRead(key, entry);
+        SessionDataStore.getInstance().storeSessionData(key.getSessionDataId(), SESSION_DATA_CACHE_NAME, entry);
+    }
+
+    /**
      * Get OIDCSessionDataCacheEntry from OIDCSessionDataCache.
      *
      * @param key OIDCSessionDataCacheKey.

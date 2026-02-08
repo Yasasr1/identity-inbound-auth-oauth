@@ -131,6 +131,28 @@ public class OIDCSessionParticipantCache
     }
 
     /**
+     * Adds session information to the cache during a READ operation.
+     * Cache key includes the browser state cookie id.
+     * Cache entry includes the authenticated user, and clients authenticated for that user who participates in the
+     * same browser session, and tenant domain.
+     *
+     * @param key   Key which cache entry is indexed.
+     * @param entry Actual object where cache entry is placed.
+     * @param tenantDomain Tenant Domian where cache will add.
+     */
+    @Override
+    public void addToCacheOnRead(OIDCSessionParticipantCacheKey key, OIDCSessionParticipantCacheEntry entry,
+                           String tenantDomain) {
+
+        super.addToCacheOnRead(key, entry, tenantDomain);
+        SessionDataStore.getInstance().storeSessionData(key.getSessionID(), OIDC_SESSION_PARTICIPANT_CACHE_NAME, entry);
+        if (log.isDebugEnabled()) {
+            log.debug("Session corresponding to the key : " + key.getSessionID() + " added to cache and persistence "
+                    + "queue.");
+        }
+    }
+
+    /**
      * Retrieve the session information from the cache.
      * At a cache miss data is loaded from the persistence store
      *

@@ -218,7 +218,7 @@ public class OAuth2ScopeService {
                     if (log.isDebugEnabled()) {
                         log.debug("Scope is getting from the database. \n" + scope.toString());
                     }
-                    OAuthScopeCache.getInstance().addToCache(new OAuthScopeCacheKey(name), scope, tenantID);
+                    OAuthScopeCache.getInstance().addToCacheOnRead(new OAuthScopeCacheKey(name), scope, tenantID);
                 }
 
             } catch (IdentityOAuth2ScopeServerException e) {
