@@ -370,6 +370,8 @@ public class OAuth2Util {
             "OAuth.EnableLegacySessionBoundTokenBehaviour";
     private static final String ALLOW_SESSION_BOUND_TOKENS_AFTER_IDLE_SESSION_EXPIRY =
             "OAuth.AllowSessionBoundTokensAfterIdleSessionExpiry";
+    private static final String HASH_SCOPES_WITHOUT_TRIMMING_CONFIG = "OAuth.HashScopes.SkipTrimming";
+
 
     private OAuth2Util() {
 
@@ -5047,5 +5049,15 @@ public class OAuth2Util {
         // This setting is only applicable if legacy session bound token behaviour is enabled.
         return isLegacySessionBoundTokenBehaviourEnabled() &&
                 Boolean.parseBoolean(IdentityUtil.getProperty(ALLOW_SESSION_BOUND_TOKENS_AFTER_IDLE_SESSION_EXPIRY));
+    }
+
+    /**
+     * Check whether hashing scopes without trimming configuration is enabled.
+     *
+     * @return true if enabled, false otherwise.
+     */
+    public static boolean hashScopesWithoutTrimmingEnabled() {
+
+        return Boolean.parseBoolean(IdentityUtil.getProperty(HASH_SCOPES_WITHOUT_TRIMMING_CONFIG));
     }
 }
