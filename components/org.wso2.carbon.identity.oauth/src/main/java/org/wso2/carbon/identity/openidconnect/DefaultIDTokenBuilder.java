@@ -419,6 +419,10 @@ public class DefaultIDTokenBuilder implements org.wso2.carbon.identity.openidcon
                                      String spTenantDomain,
                                      AuthenticatedUser authorizedUser) throws IdentityOAuth2Exception {
 
+        if (authorizedUser.isSharedUser()) {
+            return authorizedUser.getResidentUserId();
+        }
+
         return authorizedUser.getAuthenticatedSubjectIdentifier();
     }
 
