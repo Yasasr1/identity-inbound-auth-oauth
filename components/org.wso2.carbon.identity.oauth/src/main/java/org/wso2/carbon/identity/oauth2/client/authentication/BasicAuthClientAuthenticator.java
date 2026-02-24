@@ -247,7 +247,7 @@ public class BasicAuthClientAuthenticator extends AbstractOAuthClientAuthenticat
             byte[] decodedBytes = Base64Utils.decode(splitValues[1].trim());
             String userNamePassword = new String(decodedBytes, Charsets.UTF_8);
             String[] credentials = userNamePassword.split(CREDENTIAL_SEPARATOR);
-            if (credentials.length == CREDENTIAL_LENGTH) {
+            if (credentials.length == CREDENTIAL_LENGTH && StringUtils.isNotBlank(credentials[0])) {
                 return credentials;
             }
         }
