@@ -663,6 +663,8 @@ public class OAuth2Service extends AbstractAdmin {
                                 OAuth2Util.buildScopeString(accessTokenDO.getScope()));
                         OAuthUtil.clearOAuthCache(revokeRequestDTO.getConsumerKey(), accessTokenDO.getAuthzUser());
                         OAuthUtil.clearOAuthCache(accessTokenDO);
+                        OAuthUtil.clearOAuthCacheUsingPersistedScopes(tokenBindingReference,
+                                accessTokenDO, revokeRequestDTO);
                         String scope = OAuth2Util.buildScopeString(accessTokenDO.getScope());
                         String userId = accessTokenDO.getAuthzUser().getUserId();
                         synchronized ((revokeRequestDTO.getConsumerKey() + ":" + userId + ":" + scope + ":"
