@@ -49,7 +49,6 @@ import static org.wso2.carbon.identity.oauth2.Oauth2ScopeConstants.ErrorMessages
  */
 public class OAuth2ScopeService {
     private static final Log log = LogFactory.getLog(OAuth2ScopeService.class);
-    private static final String SCOPE_VALIDATION_REGEX = "^[^?#()]*$";
 
     /**
      * Register a scope with the bindings
@@ -698,7 +697,6 @@ public class OAuth2ScopeService {
     private void addScopePreValidation(Scope scope) throws IdentityOAuth2ScopeClientException {
 
         validateScopeName(scope.getName());
-        validateRegex(scope.getName());
         validateDisplayName(scope.getDisplayName());
     }
 
@@ -728,15 +726,6 @@ public class OAuth2ScopeService {
                     ERROR_CODE_BAD_REQUEST_SCOPE_NAME_NOT_SPECIFIED, null);
         }
         validateWhiteSpaces(scopeName);
-    }
-
-    private void validateRegex(String scopeName) throws IdentityOAuth2ScopeClientException {
-
-        Pattern regexPattern = Pattern.compile(SCOPE_VALIDATION_REGEX);
-        if (!regexPattern.matcher(scopeName).matches()) {
-            throw Oauth2ScopeUtils.generateClientException
-                    (ERROR_CODE_BAD_REQUEST_SCOPE_NAME_NOT_SATIFIED_THE_REGEX, scopeName);
-        }
     }
 
     /**
