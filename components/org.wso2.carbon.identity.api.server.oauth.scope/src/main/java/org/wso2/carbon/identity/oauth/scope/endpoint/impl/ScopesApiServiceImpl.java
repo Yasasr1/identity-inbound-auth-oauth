@@ -181,7 +181,7 @@ public class ScopesApiServiceImpl extends ScopesApiService {
      * @return Response with the indication whether the scope exists or not.
      */
     @Override
-    public Response isScopeExists(String name, Boolean includeOIDCScopes, Boolean encoded) {
+    public Response isScopeExists(String name, Boolean encoded) {
 
         boolean isScopeExists = false;
 

@@ -18,8 +18,7 @@ public abstract class ScopesApiService {
     public abstract Response deleteScope(String name, Boolean encoded);
     public abstract Response getScope(String name, Boolean encoded);
     public abstract Response getScopes(Integer startIndex,Integer count,Boolean includeOIDCScopes,String requestedScopes);
-    public abstract Response isScopeExists(String name);
-    public abstract Response isScopeExists(String name, Boolean includeOIDCScopes, Boolean encoded);
+    public abstract Response isScopeExists(String name, Boolean encoded);
     public abstract Response registerScope(ScopeDTO scope);
     public abstract Response updateScope(ScopeToUpdateDTO scope,String name, Boolean encoded);
 }
