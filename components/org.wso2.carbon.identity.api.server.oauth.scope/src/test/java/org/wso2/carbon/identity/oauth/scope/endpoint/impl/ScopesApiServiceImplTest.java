@@ -501,7 +501,7 @@ public class ScopesApiServiceImplTest extends PowerMockTestCase {
         String decodedScopeName = "test/scope";
 
         when(oAuth2ScopeService.isScopeExists(decodedScopeName, false)).thenReturn(Boolean.TRUE);
-        assertEquals(scopesApiService.isScopeExists(encodedScopeName, false, true).getStatus(),
+        assertEquals(scopesApiService.isScopeExists(encodedScopeName, true).getStatus(),
                 Response.Status.OK.getStatusCode(), "Error occurred while checking scope existence with encoded name");
     }
 
