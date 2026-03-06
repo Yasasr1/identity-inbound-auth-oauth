@@ -41,9 +41,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import static org.wso2.carbon.identity.oauth2.Oauth2ScopeConstants.ErrorMessages.
-        ERROR_CODE_BAD_REQUEST_SCOPE_NAME_NOT_SATIFIED_THE_REGEX;
-
 /**
  * OAuth2ScopeService use for scope handling
  */
