@@ -410,12 +410,12 @@ public class ScopesApiServiceImplTest extends PowerMockTestCase {
     public void testIsScopeExists(Response.Status expectation, Throwable throwable) throws Exception {
 
         if (Response.Status.OK.equals(expectation)) {
-            when(oAuth2ScopeService.isScopeExists(someScopeName, false)).thenReturn(Boolean.TRUE);
+            when(oAuth2ScopeService.isScopeExists(someScopeName)).thenReturn(Boolean.TRUE);
             assertEquals(scopesApiService.isScopeExists(someScopeName, false).getStatus(),
                     Response.Status.OK.getStatusCode(),
                     "Error occurred while checking is scope exist");
         } else if (Response.Status.NOT_FOUND.equals(expectation)) {
-            when(oAuth2ScopeService.isScopeExists(someScopeName, false)).thenReturn(Boolean.FALSE);
+            when(oAuth2ScopeService.isScopeExists(someScopeName)).thenReturn(Boolean.FALSE);
             assertEquals(scopesApiService.isScopeExists(someScopeName, false).getStatus(),
                     Response.Status.NOT_FOUND.getStatusCode(),
                     "Given scope does not exist but error while checking isExist");
@@ -500,7 +500,7 @@ public class ScopesApiServiceImplTest extends PowerMockTestCase {
         String encodedScopeName = "dGVzdC9zY29wZQ";
         String decodedScopeName = "test/scope";
 
-        when(oAuth2ScopeService.isScopeExists(decodedScopeName, false)).thenReturn(Boolean.TRUE);
+        when(oAuth2ScopeService.isScopeExists(decodedScopeName)).thenReturn(Boolean.TRUE);
         assertEquals(scopesApiService.isScopeExists(encodedScopeName, true).getStatus(),
                 Response.Status.OK.getStatusCode(), "Error occurred while checking scope existence with encoded name");
     }
