@@ -296,7 +296,7 @@ public class ResponseTypeHandlerUtil {
         authzCodeDO.setRequestedActor(authorizationReqDTO.getRequestedActor());
         String appResidentOrganizationId = PrivilegedCarbonContext.getThreadLocalCarbonContext()
                 .getApplicationResidentOrganizationId();
-        if (StringUtils.isNotBlank(appResidentOrganizationId)) {
+        if (StringUtils.isNotBlank(appResidentOrganizationId) && !authzCodeDO.getAuthorizedUser().isSharedUser()) {
             if (log.isDebugEnabled()) {
                 log.debug("Setting accessing organization id: " + appResidentOrganizationId +
                         " and user resident organization in the authorization code data object.");

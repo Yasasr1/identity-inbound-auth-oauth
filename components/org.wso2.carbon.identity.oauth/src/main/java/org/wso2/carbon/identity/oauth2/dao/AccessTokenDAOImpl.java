@@ -93,6 +93,7 @@ public class AccessTokenDAOImpl extends AbstractOAuthDAO implements AccessTokenD
     private static final int DEFAULT_TOKEN_PERSIST_RETRY_COUNT = 5;
     private static final String IDN_OAUTH2_ACCESS_TOKEN = "IDN_OAUTH2_ACCESS_TOKEN";
     private static final String CONSENTED_TOKEN_COLUMN_NAME = "CONSENTED_TOKEN";
+    private static final String IS_SHARED_USER_COLUMN_NAME = "IS_SHARED_USER";
     private boolean isTokenCleanupFeatureEnabled = OAuthServerConfiguration.getInstance().isTokenCleanupEnabled();
     private static final String DEFAULT_TOKEN_TO_SESSION_MAPPING = "DEFAULT";
 
@@ -183,9 +184,9 @@ public class AccessTokenDAOImpl extends AbstractOAuthDAO implements AccessTokenD
         String sql;
 
         if (OAuth2ServiceComponentHolder.isConsentedTokenColumnEnabled()) {
-            sql = SQLQueries.INSERT_OAUTH2_ACCESS_TOKEN_WITH_IDP_NAME_WITH_CONSENTED_TOKEN;
+            sql = SQLQueries.INSERT_OAUTH2_ACCESS_TOKEN_WITH_IDP_NAME_WITH_CONSENTED_TOKEN_WITH_IS_SHARED_USER;
         } else {
-            sql = SQLQueries.INSERT_OAUTH2_ACCESS_TOKEN_WITH_IDP_NAME;
+            sql = SQLQueries.INSERT_OAUTH2_ACCESS_TOKEN_WITH_IDP_NAME_WITH_IS_SHARED_USER;
         }
 
         sql = OAuth2Util.getTokenPartitionedSqlByUserStore(sql, userDomain);
@@ -251,17 +252,19 @@ public class AccessTokenDAOImpl extends AbstractOAuthDAO implements AccessTokenD
 
             if (OAuth2ServiceComponentHolder.isConsentedTokenColumnEnabled()) {
                 insertTokenPrepStmt.setString(20, Boolean.toString(accessTokenDO.isConsentedToken()));
+                insertTokenPrepStmt.setString(21, accessTokenDO.getAuthzUser().isSharedUser() ? "1" : "0");
+                insertTokenPrepStmt.setString(22, authenticatedIDP);
+                // Set tenant ID of the IDP by considering it is same as appTenantID.
+                insertTokenPrepStmt.setInt(23, appTenantId);
+                insertTokenPrepStmt.setString(24, getPersistenceProcessor().getProcessedClientId(consumerKey));
+                insertTokenPrepStmt.setInt(25, appTenantId);
+            } else {
+                insertTokenPrepStmt.setString(20, accessTokenDO.getAuthzUser().isSharedUser() ? "1" : "0");
                 insertTokenPrepStmt.setString(21, authenticatedIDP);
                 // Set tenant ID of the IDP by considering it is same as appTenantID.
                 insertTokenPrepStmt.setInt(22, appTenantId);
                 insertTokenPrepStmt.setString(23, getPersistenceProcessor().getProcessedClientId(consumerKey));
                 insertTokenPrepStmt.setInt(24, appTenantId);
-            } else {
-                insertTokenPrepStmt.setString(20, authenticatedIDP);
-                // Set tenant ID of the IDP by considering it is same as appTenantID.
-                insertTokenPrepStmt.setInt(21, appTenantId);
-                insertTokenPrepStmt.setString(22, getPersistenceProcessor().getProcessedClientId(consumerKey));
-                insertTokenPrepStmt.setInt(23, appTenantId);
             }
 
             insertTokenPrepStmt.executeUpdate();
@@ -543,13 +546,18 @@ public class AccessTokenDAOImpl extends AbstractOAuthDAO implements AccessTokenD
                     String subjectIdentifier = resultSet.getString(10);
                     String grantType = resultSet.getString(11);
                     String isConsentedToken = StringUtils.EMPTY;
+//                    boolean isSharedUser;
                     if (OAuth2ServiceComponentHolder.isConsentedTokenColumnEnabled()) {
                         isConsentedToken = resultSet.getString(12);
+//                        isSharedUser = "1".equals(resultSet.getString(13));
+//                    } else {
+//                        isSharedUser = "1".equals(resultSet.getString(12));
                     }
                     // data loss at dividing the validity period but can be neglected
                     AuthenticatedUser user = OAuth2Util.createAuthenticatedUser(authzUser, userDomain,
                             tenantDomain, authenticatedIDP);
 
+//                    user.setSharedUser(isSharedUser);
                     user.setAuthenticatedSubjectIdentifier(subjectIdentifier);
                     AccessTokenDO accessTokenDO = new AccessTokenDO(consumerKey, user, OAuth2Util.buildScopeArray
                             (scope), new Timestamp(issuedTime), new Timestamp(refreshTokenIssuedTime)
@@ -774,9 +782,11 @@ public class AccessTokenDAOImpl extends AbstractOAuthDAO implements AccessTokenD
                 String userType = resultSet.getString(7);
                 String tokenId = resultSet.getString(8);
                 String subjectIdentifier = resultSet.getString(9);
+//                boolean isSharedUser = "1".equals(resultSet.getString(10));
                 // data loss at dividing the validity period but can be neglected
                 AuthenticatedUser user = OAuth2Util.createAuthenticatedUser(tenantAwareUsernameWithNoUserDomain,
                         userDomain, tenantDomain, authenticatedIDP);
+//                user.setSharedUser(isSharedUser);
                 ServiceProvider serviceProvider;
                 try {
                     serviceProvider = OAuth2ServiceComponentHolder.getApplicationMgtService().
@@ -792,6 +802,7 @@ public class AccessTokenDAOImpl extends AbstractOAuthDAO implements AccessTokenD
                 accessTokenDO.setAccessToken(accessToken);
                 accessTokenDO.setRefreshToken(refreshToken);
                 accessTokenDO.setTokenId(tokenId);
+                accessTokenDO.getAuthzUser().setSharedUser(authzUser.isSharedUser());
                 accessTokenDO.getAuthzUser().setAccessingOrganization(authzUser.getAccessingOrganization());
                 accessTokenDO.getAuthzUser().setUserResidentOrganization(authzUser.getUserResidentOrganization());
             }
@@ -945,13 +956,13 @@ public class AccessTokenDAOImpl extends AbstractOAuthDAO implements AccessTokenD
             String sql;
             boolean isConsentedColumnDataFetched = false;
             if (includeExpired) {
-                sql = SQLQueries.RETRIEVE_ACTIVE_EXPIRED_ACCESS_TOKEN_IDP_NAME;
+                sql = SQLQueries.RETRIEVE_ACTIVE_EXPIRED_ACCESS_TOKEN_IDP_NAME_WITH_IS_SHARED_USER;
             } else {
                 if (OAuth2ServiceComponentHolder.isConsentedTokenColumnEnabled()) {
-                    sql = SQLQueries.RETRIEVE_ACTIVE_ACCESS_TOKEN_IDP_NAME_WITH_CONSENTED_TOKEN;
+                    sql = SQLQueries.RETRIEVE_ACTIVE_ACCESS_TOKEN_IDP_NAME_WITH_CONSENTED_TOKEN_WITH_IS_SHARED_USER;
                     isConsentedColumnDataFetched = true;
                 } else {
-                    sql = SQLQueries.RETRIEVE_ACTIVE_ACCESS_TOKEN_IDP_NAME;
+                    sql = SQLQueries.RETRIEVE_ACTIVE_ACCESS_TOKEN_IDP_NAME_WITH_IS_SHARED_USER;
                 }
 
             }
@@ -998,8 +1009,11 @@ public class AccessTokenDAOImpl extends AbstractOAuthDAO implements AccessTokenD
                         isConsentedToken = resultSet.getBoolean(consentedTokenColumnIndex);
                     }
 
+                    int isSharedUserColumnIndex = resultSet.findColumn(IS_SHARED_USER_COLUMN_NAME);
+                    boolean isSharedUser = "1".equals(resultSet.getString(isSharedUserColumnIndex)) ? true : false;
                     AuthenticatedUser user = OAuth2Util.createAuthenticatedUser(authorizedUser,
-                            userDomain, tenantDomain, authenticatedIDP, authorizedOrganization, appResideTenantId);
+                            userDomain, tenantDomain, authenticatedIDP, authorizedOrganization, appResideTenantId,
+                            isSharedUser);
                     ServiceProvider serviceProvider;
                     try {
                         serviceProvider = OAuth2ServiceComponentHolder.getApplicationMgtService().
