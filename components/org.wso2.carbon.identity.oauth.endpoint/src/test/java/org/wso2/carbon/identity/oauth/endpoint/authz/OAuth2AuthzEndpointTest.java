@@ -97,6 +97,7 @@ import org.wso2.carbon.identity.oauth2.OAuth2ScopeService;
 import org.wso2.carbon.identity.oauth2.OAuth2Service;
 import org.wso2.carbon.identity.oauth2.authz.AuthorizationHandlerManager;
 import org.wso2.carbon.identity.oauth2.authz.OAuthAuthzReqMessageContext;
+import org.wso2.carbon.identity.oauth2.authz.handlers.ResponseTypeHandler;
 import org.wso2.carbon.identity.oauth2.device.api.DeviceAuthService;
 import org.wso2.carbon.identity.oauth2.device.api.DeviceAuthServiceImpl;
 import org.wso2.carbon.identity.oauth2.device.constants.Constants;
@@ -2147,6 +2148,11 @@ public class OAuth2AuthzEndpointTest extends TestOAuthEndpointBase {
         });
         when(oAuthServerConfiguration.getOAuthAuthzRequestClassName())
                 .thenReturn("org.wso2.carbon.identity.oauth2.model.CarbonOAuthAuthzRequest");
+
+        Map<String, ResponseTypeHandler> supportedResponseTypes = new HashMap<>();
+        supportedResponseTypes.put(ResponseType.CODE.toString(), mock(ResponseTypeHandler.class));
+        supportedResponseTypes.put(ResponseType.TOKEN.toString(), mock(ResponseTypeHandler.class));
+        when(oAuthServerConfiguration.getSupportedResponseTypes()).thenReturn(supportedResponseTypes);
     }
 
     @DataProvider(name = "provideFailedAuthenticationErrorInfo")
