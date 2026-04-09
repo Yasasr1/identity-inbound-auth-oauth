@@ -29,6 +29,7 @@ import org.apache.oltu.oauth2.common.validators.OAuthValidator;
 import org.wso2.carbon.identity.central.log.mgt.utils.LoggerUtils;
 import org.wso2.carbon.identity.oauth.common.OAuthConstants;
 import org.wso2.carbon.identity.oauth.config.OAuthServerConfiguration;
+import org.wso2.carbon.identity.oauth2.authz.handlers.ResponseTypeHandler;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -56,7 +57,14 @@ public class CarbonOAuthAuthzRequest extends OAuthAuthzRequest {
         Class<? extends OAuthValidator<HttpServletRequest>> clazz = OAuthServerConfiguration
                 .getInstance().getSupportedResponseTypeValidators().get(responseTypeValue);
 
-        if (clazz == null) {
+        // getSupportedResponseTypeValidators() is hardcoded, so any response types disabled via configuration
+        // are not reflected there. getSupportedResponseTypes() is dynamically populated at server startup and
+        // accurately reflects the current configuration. Therefore, supported response type validation must use
+        // getSupportedResponseTypes(), and unsupported response types must be rejected before authentication.
+        ResponseTypeHandler responseTypeHandler =
+                OAuthServerConfiguration.getInstance().getSupportedResponseTypes().get(responseTypeValue);
+
+        if (clazz == null || responseTypeHandler == null) {
             if (log.isDebugEnabled()) {
                 //Do not change this log format as these logs use by external applications
                 log.debug("Unsupported Response Type : " + responseTypeValue +
