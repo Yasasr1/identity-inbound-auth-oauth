@@ -1168,6 +1168,161 @@ public class OAuth2AuthzEndpointTest extends TestOAuthEndpointBase {
         }
     }
 
+    /**
+     * Tests that an authorization request with a response type that has a validator configured but no
+     * ResponseTypeHandler registered is rejected. This exercises the new responseTypeHandler == null
+     * guard in CarbonOAuthAuthzRequest.initValidator().
+     */
+    @Test(groups = "testWithConnection")
+    public void testHandleOAuthAuthorizationRequestWithHandlerNotRegistered() throws Exception {
+
+        Map<String, String[]> requestParams = new HashMap();
+        Map<String, Object> requestAttributes = new HashMap();
+
+        requestParams.put(CLIENT_ID, new String[]{CLIENT_ID_VALUE});
+        requestParams.put(OAuthConstants.SESSION_DATA_KEY_CONSENT, new String[]{null});
+        requestParams.put(FrameworkConstants.RequestParams.TO_COMMONAUTH, new String[]{"false"});
+        requestParams.put(REDIRECT_URI, new String[]{APP_REDIRECT_URL});
+        // Use TOKEN response type — validator will be present but handler will NOT be registered.
+        requestParams.put(OAuth.OAUTH_RESPONSE_TYPE, new String[]{ResponseType.TOKEN.toString()});
+        requestAttributes.put(FrameworkConstants.RequestParams.FLOW_STATUS, AuthenticatorFlowStatus.INCOMPLETE);
+        requestAttributes.put(FrameworkConstants.SESSION_DATA_KEY, null);
+
+        mockHttpRequest(requestParams, requestAttributes, HttpMethod.POST);
+        mockOAuthServerConfiguration();
+
+        // Register TOKEN validator but intentionally omit the TOKEN handler.
+        Map<String, Class<? extends OAuthValidator<HttpServletRequest>>> responseTypeValidators = new Hashtable<>();
+        responseTypeValidators.put(ResponseType.CODE.toString(), CodeValidator.class);
+        responseTypeValidators.put(ResponseType.TOKEN.toString(), TokenValidator.class);
+        when(oAuthServerConfiguration.getSupportedResponseTypeValidators()).thenReturn(responseTypeValidators);
+
+        // Only CODE has a handler; TOKEN handler is missing → initValidator() must throw OAuthProblemException.
+        Map<String, ResponseTypeHandler> supportedResponseTypes = new HashMap<>();
+        supportedResponseTypes.put(ResponseType.CODE.toString(), mock(ResponseTypeHandler.class));
+        when(oAuthServerConfiguration.getSupportedResponseTypes()).thenReturn(supportedResponseTypes);
+
+        spy(FrameworkUtils.class);
+        doNothing().when(FrameworkUtils.class, "startTenantFlow", anyString());
+        doNothing().when(FrameworkUtils.class, "endTenantFlow");
+        mockStatic(IdentityTenantUtil.class);
+        when(IdentityTenantUtil.getTenantDomain(anyInt())).thenReturn(MultitenantConstants.SUPER_TENANT_DOMAIN_NAME);
+        when(IdentityTenantUtil.getTenantId(anyString())).thenReturn(MultitenantConstants.SUPER_TENANT_ID);
+        mockStatic(LoggerUtils.class);
+        when(LoggerUtils.isDiagnosticLogsEnabled()).thenReturn(true);
+        IdentityEventService eventServiceMock = mock(IdentityEventService.class);
+        mockStatic(CentralLogMgtServiceComponentHolder.class);
+        when(CentralLogMgtServiceComponentHolder.getInstance()).thenReturn(centralLogMgtServiceComponentHolderMock);
+        when(centralLogMgtServiceComponentHolderMock.getIdentityEventService()).thenReturn(eventServiceMock);
+        PowerMockito.doNothing().when(eventServiceMock).handleEvent(any());
+
+        mockStatic(IdentityDatabaseUtil.class);
+        when(IdentityDatabaseUtil.getDBConnection()).thenReturn(connection);
+
+        mockEndpointUtil(false);
+        when(oAuth2Service.getOauthApplicationState(CLIENT_ID_VALUE)).thenReturn("ACTIVE");
+
+        mockStatic(OAuth2Util.OAuthURL.class);
+        when(OAuth2Util.OAuthURL.getOAuth2ErrorPageUrl()).thenReturn(ERROR_PAGE_URL);
+
+        OAuth2ClientValidationResponseDTO validationResponseDTO = new OAuth2ClientValidationResponseDTO();
+        validationResponseDTO.setValidClient(true);
+        validationResponseDTO.setCallbackURL(APP_REDIRECT_URL);
+        when(oAuth2Service.validateClientInfo(any())).thenReturn(validationResponseDTO);
+
+        mockServiceURLBuilder();
+
+        Response response;
+        try {
+            response = oAuth2AuthzEndpoint.authorize(httpServletRequest, httpServletResponse);
+        } catch (InvalidRequestParentException ire) {
+            InvalidRequestExceptionMapper invalidRequestExceptionMapper = new InvalidRequestExceptionMapper();
+            response = invalidRequestExceptionMapper.toResponse(ire);
+        }
+
+        assertNotNull(response, "Response must not be null");
+        assertEquals(response.getStatus(), HttpServletResponse.SC_FOUND, "Unexpected HTTP response status");
+        String location = String.valueOf(response.getMetadata().get(HTTPConstants.HEADER_LOCATION).get(0));
+        assertTrue(location.contains(ERROR_PAGE_URL),
+                "Expected redirect to error page when response type handler is not registered");
+    }
+
+    /**
+     * Tests that an authorization request with a response type that has neither a validator
+     * nor a ResponseTypeHandler registered is rejected.
+     */
+    @Test(groups = "testWithConnection")
+    public void testHandleOAuthAuthorizationRequestWithNoValidatorAndNoHandlerRegistered() throws Exception {
+
+        Map<String, String[]> requestParams = new HashMap();
+        Map<String, Object> requestAttributes = new HashMap();
+
+        requestParams.put(CLIENT_ID, new String[]{CLIENT_ID_VALUE});
+        requestParams.put(OAuthConstants.SESSION_DATA_KEY_CONSENT, new String[]{null});
+        requestParams.put(FrameworkConstants.RequestParams.TO_COMMONAUTH, new String[]{"false"});
+        requestParams.put(REDIRECT_URI, new String[]{APP_REDIRECT_URL});
+        // Use an entirely unsupported response type with no validator or handler.
+        requestParams.put(OAuth.OAUTH_RESPONSE_TYPE, new String[]{"unsupported_type"});
+        requestAttributes.put(FrameworkConstants.RequestParams.FLOW_STATUS, AuthenticatorFlowStatus.INCOMPLETE);
+        requestAttributes.put(FrameworkConstants.SESSION_DATA_KEY, null);
+
+        mockHttpRequest(requestParams, requestAttributes, HttpMethod.POST);
+        mockOAuthServerConfiguration();
+
+        // Neither validator nor handler registered for "unsupported_type".
+        Map<String, Class<? extends OAuthValidator<HttpServletRequest>>> responseTypeValidators = new Hashtable<>();
+        responseTypeValidators.put(ResponseType.CODE.toString(), CodeValidator.class);
+        when(oAuthServerConfiguration.getSupportedResponseTypeValidators()).thenReturn(responseTypeValidators);
+
+        Map<String, ResponseTypeHandler> supportedResponseTypes = new HashMap<>();
+        supportedResponseTypes.put(ResponseType.CODE.toString(), mock(ResponseTypeHandler.class));
+        when(oAuthServerConfiguration.getSupportedResponseTypes()).thenReturn(supportedResponseTypes);
+
+        spy(FrameworkUtils.class);
+        doNothing().when(FrameworkUtils.class, "startTenantFlow", anyString());
+        doNothing().when(FrameworkUtils.class, "endTenantFlow");
+        mockStatic(IdentityTenantUtil.class);
+        when(IdentityTenantUtil.getTenantDomain(anyInt())).thenReturn(MultitenantConstants.SUPER_TENANT_DOMAIN_NAME);
+        when(IdentityTenantUtil.getTenantId(anyString())).thenReturn(MultitenantConstants.SUPER_TENANT_ID);
+        mockStatic(LoggerUtils.class);
+        when(LoggerUtils.isDiagnosticLogsEnabled()).thenReturn(true);
+        IdentityEventService eventServiceMock = mock(IdentityEventService.class);
+        mockStatic(CentralLogMgtServiceComponentHolder.class);
+        when(CentralLogMgtServiceComponentHolder.getInstance()).thenReturn(centralLogMgtServiceComponentHolderMock);
+        when(centralLogMgtServiceComponentHolderMock.getIdentityEventService()).thenReturn(eventServiceMock);
+        PowerMockito.doNothing().when(eventServiceMock).handleEvent(any());
+
+        mockStatic(IdentityDatabaseUtil.class);
+        when(IdentityDatabaseUtil.getDBConnection()).thenReturn(connection);
+
+        mockEndpointUtil(false);
+        when(oAuth2Service.getOauthApplicationState(CLIENT_ID_VALUE)).thenReturn("ACTIVE");
+
+        mockStatic(OAuth2Util.OAuthURL.class);
+        when(OAuth2Util.OAuthURL.getOAuth2ErrorPageUrl()).thenReturn(ERROR_PAGE_URL);
+
+        OAuth2ClientValidationResponseDTO validationResponseDTO = new OAuth2ClientValidationResponseDTO();
+        validationResponseDTO.setValidClient(true);
+        validationResponseDTO.setCallbackURL(APP_REDIRECT_URL);
+        when(oAuth2Service.validateClientInfo(any())).thenReturn(validationResponseDTO);
+
+        mockServiceURLBuilder();
+
+        Response response;
+        try {
+            response = oAuth2AuthzEndpoint.authorize(httpServletRequest, httpServletResponse);
+        } catch (InvalidRequestParentException ire) {
+            InvalidRequestExceptionMapper invalidRequestExceptionMapper = new InvalidRequestExceptionMapper();
+            response = invalidRequestExceptionMapper.toResponse(ire);
+        }
+
+        assertNotNull(response, "Response must not be null");
+        assertEquals(response.getStatus(), HttpServletResponse.SC_FOUND, "Unexpected HTTP response status");
+        String location = String.valueOf(response.getMetadata().get(HTTPConstants.HEADER_LOCATION).get(0));
+        assertTrue(location.contains(ERROR_PAGE_URL),
+                "Expected redirect to error page when response type is not registered");
+    }
+
     @DataProvider(name = "provideUserConsentData")
     public Object[][] provideUserConsentData() {
 

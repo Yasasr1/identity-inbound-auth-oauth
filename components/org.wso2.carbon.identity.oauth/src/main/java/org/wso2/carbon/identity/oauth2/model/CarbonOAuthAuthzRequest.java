@@ -57,6 +57,10 @@ public class CarbonOAuthAuthzRequest extends OAuthAuthzRequest {
         Class<? extends OAuthValidator<HttpServletRequest>> clazz = OAuthServerConfiguration
                 .getInstance().getSupportedResponseTypeValidators().get(responseTypeValue);
 
+        // getSupportedResponseTypeValidators() is hardcoded, so any response types disabled via configuration
+        // are not reflected there. getSupportedResponseTypes() is dynamically populated at server startup and
+        // accurately reflects the current configuration. Therefore, supported response type validation must use
+        // getSupportedResponseTypes(), and unsupported response types must be rejected before authentication.
         ResponseTypeHandler responseTypeHandler =
                 OAuthServerConfiguration.getInstance().getSupportedResponseTypes().get(responseTypeValue);
 
