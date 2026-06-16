@@ -80,7 +80,7 @@
             <form method="post" action="edit-oidc-claims-finish-ajaxprocessor.jsp" name="dataForm"
                   onsubmit="return doValidation();">
                 <input type="hidden" id="update" name="update" value="false"/>
-                <input type="hidden" name="scopeName" value=<%=Encode.forHtml(scope)%> id="scopeName"/>
+                <input type="hidden" name="scopeName" value="<%=Encode.forHtmlAttribute(scope)%>" id="scopeName"/>
                 <table class="styledLeft" width="100%" id="oidcClaims">
                     <thead>
                     <tr style="white-space: nowrap">
