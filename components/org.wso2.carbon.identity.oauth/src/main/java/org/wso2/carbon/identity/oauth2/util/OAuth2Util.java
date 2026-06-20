@@ -70,6 +70,7 @@ import org.wso2.carbon.identity.application.authentication.framework.store.UserS
 import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants;
 import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkUtils;
 import org.wso2.carbon.identity.application.common.IdentityApplicationManagementException;
+import org.wso2.carbon.identity.application.common.model.ClaimConfig;
 import org.wso2.carbon.identity.application.common.model.ClaimMapping;
 import org.wso2.carbon.identity.application.common.model.FederatedAuthenticatorConfig;
 import org.wso2.carbon.identity.application.common.model.IdentityProvider;
@@ -80,6 +81,8 @@ import org.wso2.carbon.identity.application.mgt.ApplicationManagementService;
 import org.wso2.carbon.identity.base.IdentityConstants;
 import org.wso2.carbon.identity.base.IdentityException;
 import org.wso2.carbon.identity.central.log.mgt.utils.LoggerUtils;
+import org.wso2.carbon.identity.claim.metadata.mgt.ClaimMetadataHandler;
+import org.wso2.carbon.identity.claim.metadata.mgt.exception.ClaimMetadataException;
 import org.wso2.carbon.identity.core.ServiceURLBuilder;
 import org.wso2.carbon.identity.core.URLBuilderException;
 import org.wso2.carbon.identity.core.util.IdentityConfigParser;
@@ -172,6 +175,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -371,6 +375,8 @@ public class OAuth2Util {
     private static final String ALLOW_SESSION_BOUND_TOKENS_AFTER_IDLE_SESSION_EXPIRY =
             "OAuth.AllowSessionBoundTokensAfterIdleSessionExpiry";
     private static final String HASH_SCOPES_WITHOUT_TRIMMING_CONFIG = "OAuth.HashScopes.SkipTrimming";
+    private static final String DROP_UNREQUESTED_OIDC_SCOPES = "OAuth.DropUnrequestedOIDCScopes";
+    private static final String OIDC_DIALECT = "http://wso2.org/oidc/claim";
 
 
     private OAuth2Util() {
@@ -3483,6 +3489,121 @@ public class OAuth2Util {
             throw new IdentityOAuth2Exception("Error while obtaining the service provider for client_id: " +
                     clientId + " of tenantDomain: " + tenantDomain, e);
         }
+    }
+
+    /**
+     * Check whether unrequested OIDC scopes from the application should be dropped from the token response.
+     *
+     * @return true if unrequested OIDC scopes should be dropped, false otherwise.
+     */
+    public static boolean shouldDropUnrequestedOIDCScopes() {
+
+        return Boolean.parseBoolean(IdentityUtil.getProperty(DROP_UNREQUESTED_OIDC_SCOPES));
+    }
+
+    /**
+     * Drop OIDC scopes that are requested but not configured (not mapped to the requested claims) for the
+     * application from the given scope array. Non-OIDC scopes, and OIDC scopes that are valid for the application,
+     * are retained. Filtering is applied only when the "OAuth.DropUnrequestedOIDCScopes" configuration is enabled.
+     *
+     * @param clientId     OAuth2/OIDC client identifier.
+     * @param tenantDomain Tenant domain.
+     * @param scopes       Requested/approved scopes.
+     * @return Scopes with unrequested OIDC scopes removed.
+     * @throws IdentityOAuth2Exception if an error occurs while validating the requested OIDC scopes.
+     */
+    public static String[] filterUnrequestedOIDCScopes(String clientId, String tenantDomain, String[] scopes)
+            throws IdentityOAuth2Exception {
+
+        if (!shouldDropUnrequestedOIDCScopes() || ArrayUtils.isEmpty(scopes)) {
+            return scopes;
+        }
+        List<String> requestedScopes = Arrays.asList(scopes);
+        Set<String> registeredOIDCScopes = new HashSet<>(getOIDCScopes(tenantDomain));
+        Set<String> requestedOIDCScopes = new HashSet<>();
+        for (String scope : scopes) {
+            if (registeredOIDCScopes.contains(scope)) {
+                requestedOIDCScopes.add(scope);
+            }
+        }
+        // No OIDC scopes were requested; nothing to filter.
+        if (requestedOIDCScopes.isEmpty()) {
+            return scopes;
+        }
+        Set<String> validatedOIDCScopes = getValidatedRequestedOIDCScopes(clientId, requestedScopes, tenantDomain);
+        List<String> filteredScopes = new ArrayList<>();
+        for (String scope : scopes) {
+            // Retain non-OIDC scopes and OIDC scopes that are valid for the application.
+            if (!requestedOIDCScopes.contains(scope) || validatedOIDCScopes.contains(scope)) {
+                filteredScopes.add(scope);
+            }
+        }
+        return filteredScopes.toArray(new String[0]);
+    }
+
+    private static Set<String> getValidatedRequestedOIDCScopes(String clientId, List<String> requestedScopes,
+                                                               String tenantDomain) throws IdentityOAuth2Exception {
+
+        if (!requestedScopes.contains(OAuthConstants.Scope.OPENID)) {
+            return Collections.emptySet();
+        }
+        ServiceProvider serviceProvider = getServiceProvider(clientId, tenantDomain);
+        if (serviceProvider == null) {
+            throw new IdentityOAuth2Exception("No service provider found for client_id: " + clientId +
+                    " in tenant domain: " + tenantDomain);
+        }
+        try {
+            Set<String> requestedClaimUris = getRequestedClaimUris(serviceProvider);
+            return getOIDCScopesForRequestedClaims(requestedClaimUris, requestedScopes, tenantDomain);
+        } catch (ClaimMetadataException e) {
+            throw new IdentityOAuth2Exception("Error while validating requested OIDC scopes: " +
+                    StringUtils.join(requestedScopes, " ") + " for client_id: " + clientId +
+                    " in tenant domain: " + tenantDomain, e);
+        }
+    }
+
+    private static Set<String> getRequestedClaimUris(ServiceProvider serviceProvider) {
+
+        ClaimConfig claimConfig = serviceProvider.getClaimConfig();
+        if (claimConfig == null || claimConfig.getClaimMappings() == null) {
+            return Collections.emptySet();
+        }
+        return Arrays.stream(claimConfig.getClaimMappings())
+                .filter(mapping -> mapping.isRequested() && mapping.getLocalClaim() != null)
+                .map(mapping -> mapping.getLocalClaim().getClaimUri())
+                .collect(Collectors.toSet());
+    }
+
+    private static Set<String> getOIDCScopesForRequestedClaims(Set<String> requestedClaimUris,
+                                                               List<String> requestedScopes, String tenantDomain)
+            throws ClaimMetadataException, IdentityOAuth2Exception {
+
+        Set<String> validatedOIDCScopes = new HashSet<>();
+        if (requestedScopes.contains(OAuthConstants.Scope.OPENID)) {
+            validatedOIDCScopes.add(OAuthConstants.Scope.OPENID);
+        }
+        if (CollectionUtils.isEmpty(requestedClaimUris)) {
+            return validatedOIDCScopes;
+        }
+        Map<String, String> oidcToLocalClaimMappings = ClaimMetadataHandler.getInstance()
+                .getMappingsMapFromOtherDialectToCarbon(OIDC_DIALECT, null, tenantDomain, false);
+        int tenantId = IdentityTenantUtil.getTenantId(tenantDomain);
+        List<ScopeDTO> oidcScopesList = OAuthTokenPersistenceFactory.getInstance().getScopeClaimMappingDAO()
+                .getScopes(tenantId);
+        for (ScopeDTO scopeDTO : oidcScopesList) {
+            String scopeName = scopeDTO.getName();
+            if (!requestedScopes.contains(scopeName) || scopeDTO.getClaim() == null) {
+                continue;
+            }
+            for (String scopeClaim : scopeDTO.getClaim()) {
+                String localClaim = oidcToLocalClaimMappings.get(scopeClaim);
+                if (localClaim != null && requestedClaimUris.contains(localClaim)) {
+                    validatedOIDCScopes.add(scopeName);
+                    break;
+                }
+            }
+        }
+        return validatedOIDCScopes;
     }
 
     /**

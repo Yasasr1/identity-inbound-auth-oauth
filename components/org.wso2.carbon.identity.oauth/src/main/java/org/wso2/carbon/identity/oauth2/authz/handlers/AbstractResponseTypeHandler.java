@@ -119,7 +119,14 @@ public abstract class AbstractResponseTypeHandler implements ResponseTypeHandler
                         + validator.getName());
             }
         }
-        return scopeValidationCallback.isValidScope();
+        boolean isValidScope = scopeValidationCallback.isValidScope();
+        if (isValidScope) {
+            // Drop OIDC scopes that are not configured (mapped to requested claims) for the application.
+            oauthAuthzMsgCtx.setApprovedScope(OAuth2Util.filterUnrequestedOIDCScopes(
+                    authorizationReqDTO.getConsumerKey(), authorizationReqDTO.getTenantDomain(),
+                    oauthAuthzMsgCtx.getApprovedScope()));
+        }
+        return isValidScope;
     }
 
     @Override

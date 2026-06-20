@@ -338,7 +338,15 @@ public abstract class AbstractAuthorizationGrantHandler implements Authorization
             }
         }
 
-        return isValid && scopeValidationCallback.isValidScope();
+        boolean isValidScope = isValid && scopeValidationCallback.isValidScope();
+        if (isValidScope) {
+            // Drop OIDC scopes that are not configured (mapped to requested claims) for the application.
+            tokReqMsgCtx.setScope(OAuth2Util.filterUnrequestedOIDCScopes(
+                    tokReqMsgCtx.getOauth2AccessTokenReqDTO().getClientId(),
+                    tokReqMsgCtx.getOauth2AccessTokenReqDTO().getTenantDomain(),
+                    tokReqMsgCtx.getScope()));
+        }
+        return isValidScope;
     }
 
     @Override
