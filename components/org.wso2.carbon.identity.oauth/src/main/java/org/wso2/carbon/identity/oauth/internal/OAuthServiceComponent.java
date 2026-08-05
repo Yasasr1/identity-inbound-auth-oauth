@@ -47,6 +47,7 @@ import org.wso2.carbon.identity.oauth.common.OAuthConstants;
 import org.wso2.carbon.identity.oauth.common.token.bindings.TokenBinderInfo;
 import org.wso2.carbon.identity.oauth.config.OAuthServerConfiguration;
 import org.wso2.carbon.identity.oauth.event.OAuthEventInterceptor;
+import org.wso2.carbon.identity.oauth.listener.AgentPasskeyEnrolmentTokenRevocationHandler;
 import org.wso2.carbon.identity.oauth.listener.IdentityOathEventListener;
 import org.wso2.carbon.identity.oauth.listener.IdentityOauthEventHandler;
 import org.wso2.carbon.identity.oauth.listener.OAuthApplicationMgtListener;
@@ -104,6 +105,12 @@ public class OAuthServiceComponent {
                     new IdentityOauthEventHandler(), null);
             if (log.isDebugEnabled()) {
                 log.debug("Identity Oauth Event handler is enabled");
+            }
+
+            context.getBundleContext().registerService(AbstractEventHandler.class.getName(),
+                    new AgentPasskeyEnrolmentTokenRevocationHandler(), null);
+            if (log.isDebugEnabled()) {
+                log.debug("Agent passkey enrolment token revocation handler is enabled");
             }
 
             OAuth2Service oauth2Service = new OAuth2Service();
