@@ -44,6 +44,7 @@ public class CibaAuthCodeRequest {
     private String notificationChannel;
     private String requestedActor;
     private Map<String, String> actorTokenClaims = new HashMap<>();
+    private boolean authenticatedWithAgentJWT;
 
     /**
      * Returns the claims carried in the actor token sent with the CIBA authentication request.
@@ -230,5 +231,23 @@ public class CibaAuthCodeRequest {
     public void setNotificationChannel(String notificationChannel) {
 
         this.notificationChannel = notificationChannel;
+    }
+
+    /**
+     * Whether the agent JWT client authenticator authenticated this request - that is, the caller presented an agent
+     * access token as a client assertion and it verified. This is the only credential that lets an app flagged as a
+     * public client through CIBA's confidential client requirement, because it is the only one bound to an agent
+     * principal rather than to a secret the public client does not hold.
+     *
+     * @return true if the agent JWT client authentication method authenticated the request.
+     */
+    public boolean isAuthenticatedWithAgentJWT() {
+
+        return authenticatedWithAgentJWT;
+    }
+
+    public void setAuthenticatedWithAgentJWT(boolean authenticatedWithAgentJWT) {
+
+        this.authenticatedWithAgentJWT = authenticatedWithAgentJWT;
     }
 }

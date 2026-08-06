@@ -73,7 +73,13 @@ public class CibaAuthServiceImpl implements CibaAuthService {
             throw new CibaCoreException("Error fetching app information for client: " + clientID, e);
         }
 
-        if (appDO.isBypassClientCredentials()) {
+        /*
+         * CIBA requires the client to be authenticated, which a public client normally is not. The single exception is
+         * an agent authenticating with its own access token as a client assertion: the app has to stay public for the
+         * agent to obtain that token through the app-native passkey flow, yet the CIBA request itself carries a
+         * verified credential bound to the agent. No other client authentication method lifts this restriction.
+         */
+        if (appDO.isBypassClientCredentials() && !cibaAuthCodeRequest.isAuthenticatedWithAgentJWT()) {
             throw new CibaClientException("CIBA cannot be used with public clients. Client: " + clientID + " " +
                     "is configured as a public client.");
         }

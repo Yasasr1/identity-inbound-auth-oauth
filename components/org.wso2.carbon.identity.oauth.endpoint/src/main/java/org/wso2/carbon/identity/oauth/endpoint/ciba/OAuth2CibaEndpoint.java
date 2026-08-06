@@ -45,6 +45,7 @@ import org.wso2.carbon.identity.oauth.endpoint.util.factory.CibaAuthServiceFacto
 import org.wso2.carbon.identity.oauth2.IdentityOAuth2Exception;
 import org.wso2.carbon.identity.oauth2.RequestObjectException;
 import org.wso2.carbon.identity.oauth2.bean.OAuthClientAuthnContext;
+import org.wso2.carbon.identity.oauth2.internal.OAuth2ServiceComponentHolder;
 import org.wso2.carbon.identity.oauth2.model.OAuth2Parameters;
 import org.wso2.carbon.identity.oauth2.token.handlers.grant.ActorTokenValidator;
 import org.wso2.carbon.identity.oauth2.util.OAuth2Util;
@@ -82,6 +83,11 @@ public class OAuth2CibaEndpoint {
     private CibaAuthCodeRequest cibaAuthCodeRequest;
     private CibaAuthCodeResponse cibaAuthCodeResponse;
     private static final String REQUEST_PARAM_VALUE_BUILDER = "request_param_value_builder";
+    /*
+     * Client authentication method name advertised by the agent JWT client authenticator, which is contributed by
+     * a separate bundle. Matched by name because this component cannot depend on that bundle.
+     */
+    private static final String AGENT_JWT_CLIENT_AUTH_METHOD = "agent_jwt";
 
     @POST
     @Path("/")
@@ -151,6 +157,9 @@ public class OAuth2CibaEndpoint {
                 // Build CibaAuthCodeRequest from individual parameters
                 cibaAuthCodeRequest = getCibaAuthCodeRequestFromParams(params, oAuthClientAuthnContext.getClientId());
             }
+
+            cibaAuthCodeRequest.setAuthenticatedWithAgentJWT(
+                    isAuthenticatedWithAgentJWT(oAuthClientAuthnContext));
 
             // Validate actor_token and store actor subject and claims for OBO delegation.
             String actorToken = request.getParameter(OAuthConstants.ACTOR_TOKEN);
@@ -386,6 +395,39 @@ public class OAuth2CibaEndpoint {
             oAuthClientAuthnContext.setErrorCode(OAuthError.TokenResponse.INVALID_REQUEST);
         }
         return oAuthClientAuthnContext;
+    }
+
+    /**
+     * Whether the agent JWT client authenticator - the one advertising the {@code agent_jwt} client authentication
+     * method - authenticated this request.
+     * <p>
+     * The context records the authenticators that <i>engaged</i>, not the one that succeeded, so the authenticated flag
+     * is checked here as well rather than relying on the caller having done it: on its own, a match in the engaged list
+     * would also be true of an agent JWT assertion that was presented and then failed validation. With the flag
+     * asserted the list is unambiguous, because {@code OAuthClientAuthnService#failOnMultipleAuthenticators} clears it
+     * whenever more than one authenticator engaged - an authenticated request has exactly one, and it is the one that
+     * authenticated.
+     * <p>
+     * Matching on the authentication method name rather than the authenticator's class keeps this independent of the
+     * bundle that contributes the authenticator - {@code agent_jwt} is the same identifier that appears in the server's
+     * discovery metadata and in application configuration.
+     *
+     * @param oAuthClientAuthnContext Client authentication context of the request.
+     * @return true if the agent JWT client authentication method authenticated the request.
+     */
+    private boolean isAuthenticatedWithAgentJWT(OAuthClientAuthnContext oAuthClientAuthnContext) {
+
+        if (!oAuthClientAuthnContext.isAuthenticated()) {
+            return false;
+        }
+        List executedAuthenticators = oAuthClientAuthnContext.getExecutedAuthenticators();
+        if (executedAuthenticators == null || executedAuthenticators.isEmpty()) {
+            return false;
+        }
+        return OAuth2ServiceComponentHolder.getAuthenticationHandlers().stream()
+                .filter(authenticator -> executedAuthenticators.contains(authenticator.getName()))
+                .flatMap(authenticator -> authenticator.getSupportedClientAuthenticationMethods().stream())
+                .anyMatch(authMethod -> AGENT_JWT_CLIENT_AUTH_METHOD.equals(authMethod.getName()));
     }
 
     private String getSpTenantDomain(String clientId) throws InvalidRequestException {

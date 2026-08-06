@@ -50,6 +50,14 @@ public class PublicClientAuthenticator extends AbstractOAuthClientAuthenticator 
     private static final Log log = LogFactory.getLog(PublicClientAuthenticator.class);
     private static final String GRANT_TYPE = "grant_type";
     private static final String RESPONSE_MODE = "response_mode";
+    private static final String CLIENT_ASSERTION_TYPE = "client_assertion_type";
+    /*
+     * Client assertion type of the agent JWT client authenticator, which is contributed by a separate bundle and so is
+     * matched by value here. A request presenting it is authenticating with an agent access token, not relying on the
+     * public client bypass.
+     */
+    private static final String AGENT_JWT_ASSERTION_TYPE =
+            "urn:wso2:params:oauth:client-assertion-type:agent-jwt-bearer";
 
     /**
      * Returns the execution order of this authenticator.
@@ -89,6 +97,19 @@ public class PublicClientAuthenticator extends AbstractOAuthClientAuthenticator 
     @Override
     public boolean canAuthenticate(HttpServletRequest request, Map<String, List> bodyParams, OAuthClientAuthnContext
             context) {
+
+        /*
+         * An agent JWT client assertion is a credential in its own right, so this authenticator must stand aside. Were
+         * both to engage, OAuthClientAuthnService#failOnMultipleAuthenticators would reject the request with "The
+         * client MUST NOT use more than one authentication method" - which is also what RFC 6749 section 2.3 requires
+         * of the client, and the assertion is the method it chose.
+         */
+        if (isAgentJWTAssertionRequest(bodyParams)) {
+            if (log.isDebugEnabled()) {
+                log.debug("An agent JWT client assertion is present. The public client authenticator does not engage.");
+            }
+            return false;
+        }
 
         List<String> publicClientSupportedGrantTypes = OAuthServerConfiguration.getInstance().
                 getPublicClientSupportedGrantTypesList();
@@ -151,6 +172,16 @@ public class PublicClientAuthenticator extends AbstractOAuthClientAuthenticator 
      *
      * @return The name of the OAuth2 client authenticator.
      */
+    private boolean isAgentJWTAssertionRequest(Map<String, List> bodyParams) {
+
+        if (bodyParams == null) {
+            return false;
+        }
+        List assertionTypes = bodyParams.get(CLIENT_ASSERTION_TYPE);
+        return assertionTypes != null && !assertionTypes.isEmpty()
+                && AGENT_JWT_ASSERTION_TYPE.equals(String.valueOf(assertionTypes.get(0)));
+    }
+
     @Override
     public String getName() {
 
