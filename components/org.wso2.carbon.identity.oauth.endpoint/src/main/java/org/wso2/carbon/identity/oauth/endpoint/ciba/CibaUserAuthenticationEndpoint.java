@@ -32,6 +32,7 @@ import org.wso2.carbon.identity.oauth.ciba.common.CibaConstants;
 import org.wso2.carbon.identity.oauth.ciba.dao.CibaDAOFactory;
 import org.wso2.carbon.identity.oauth.ciba.exceptions.CibaCoreException;
 import org.wso2.carbon.identity.oauth.ciba.model.CibaAuthCodeDO;
+import org.wso2.carbon.identity.oauth.ciba.wrappers.CibaAuthRequestWrapper;
 import org.wso2.carbon.identity.oauth.common.OAuth2ErrorCodes;
 import org.wso2.carbon.identity.oauth.common.OAuthConstants;
 import org.wso2.carbon.identity.oauth.endpoint.authz.OAuth2AuthzEndpoint;
@@ -121,9 +122,18 @@ public class CibaUserAuthenticationEndpoint {
                 return buildErrorResponse(INVALID_AUTH_CODE_KEY);
             }
             
-            // Build the authentication request wrapper with CIBA session details
-            // Override content type and method since CarbonOAuthAuthzRequest expects POST with form-urlencoded
-            CommonAuthRequestWrapper commonAuthRequestWrapper = new CommonAuthRequestWrapper(request) {
+            /*
+             * Build the authentication request wrapper with CIBA session details.
+             * Override content type and method since CarbonOAuthAuthzRequest expects POST with form-urlencoded.
+             *
+             * CibaAuthRequestWrapper rather than CommonAuthRequestWrapper: the latter overrides only
+             * getParameter(), so parameters replayed here reach the authorize endpoint but are dropped from
+             * getParameterMap() — which is what AuthzUtil hands to the authentication framework as the request
+             * query params. Everything replayed below (scope, nonce, authorization_details) would then be
+             * invisible to the login flow, so an adaptive authentication script could not read the requested
+             * authorization details to show them to the user for approval.
+             */
+            CommonAuthRequestWrapper commonAuthRequestWrapper = new CibaAuthRequestWrapper(request) {
                 @Override
                 public String getContentType() {
                     return "application/x-www-form-urlencoded";
