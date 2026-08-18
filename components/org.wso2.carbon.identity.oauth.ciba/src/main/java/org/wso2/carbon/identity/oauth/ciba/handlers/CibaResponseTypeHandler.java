@@ -35,6 +35,7 @@ import org.wso2.carbon.identity.oauth.ciba.dao.CibaDAOFactory;
 import org.wso2.carbon.identity.oauth.ciba.exceptions.CibaCoreException;
 import org.wso2.carbon.identity.oauth.dao.OAuthAppDO;
 import org.wso2.carbon.identity.oauth.dto.OAuthErrorDTO;
+import org.wso2.carbon.identity.oauth.rar.model.AuthorizationDetails;
 import org.wso2.carbon.identity.oauth2.IdentityOAuth2ClientException;
 import org.wso2.carbon.identity.oauth2.IdentityOAuth2Exception;
 import org.wso2.carbon.identity.oauth2.authz.OAuthAuthzReqMessageContext;
@@ -83,6 +84,16 @@ public class CibaResponseTypeHandler extends AbstractResponseTypeHandler {
             // Update successful authentication.
             CibaDAOFactory.getInstance().getCibaAuthMgtDAO()
                     .persistAuthenticationSuccess(authCodeKey, cibaAuthenticatedUser);
+
+            /*
+             * Replace the requested authorization details with the validated set the user approved, so that the token
+             * issued against this auth_req_id carries what was consented to rather than the raw request.
+             */
+            AuthorizationDetails approvedAuthorizationDetails = oauthAuthzMsgCtx.getApprovedAuthorizationDetails();
+            if (approvedAuthorizationDetails != null && !approvedAuthorizationDetails.getDetails().isEmpty()) {
+                CibaDAOFactory.getInstance().getCibaAuthMgtDAO()
+                        .updateAuthorizationDetails(authCodeKey, approvedAuthorizationDetails.toJsonString());
+            }
             String redirectionURI = getCibaFlowCompletionPageURI(oAuthAppDO.getApplicationName(),
                     oauthAuthzMsgCtx.getAuthorizationReqDTO().getTenantDomain());
             respDTO.setCallbackURI(redirectionURI);

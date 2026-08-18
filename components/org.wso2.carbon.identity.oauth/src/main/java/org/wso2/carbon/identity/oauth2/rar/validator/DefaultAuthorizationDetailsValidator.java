@@ -19,6 +19,7 @@
 package org.wso2.carbon.identity.oauth2.rar.validator;
 
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.oltu.oauth2.common.message.types.GrantType;
@@ -32,6 +33,7 @@ import org.wso2.carbon.identity.oauth.rar.exception.AuthorizationDetailsProcessi
 import org.wso2.carbon.identity.oauth.rar.model.AuthorizationDetail;
 import org.wso2.carbon.identity.oauth.rar.model.AuthorizationDetails;
 import org.wso2.carbon.identity.oauth.rar.model.ValidationResult;
+import org.wso2.carbon.identity.oauth.rar.util.AuthorizationDetailsCommonUtils;
 import org.wso2.carbon.identity.oauth2.IdentityOAuth2Exception;
 import org.wso2.carbon.identity.oauth2.IdentityOAuth2ServerException;
 import org.wso2.carbon.identity.oauth2.authz.OAuthAuthzReqMessageContext;
@@ -389,8 +391,27 @@ public class DefaultAuthorizationDetailsValidator implements AuthorizationDetail
         return this.authorizationDetailsProcessorFactory
                 .getAuthorizationDetailsProcessorByType(authorizationDetailsContext.getAuthorizationDetail().getType())
                 .map(authorizationDetailsProcessor -> authorizationDetailsProcessor.enrich(authorizationDetailsContext))
-                // If provider is missing, return the original authorization detail instance
-                .orElse(authorizationDetailsContext.getAuthorizationDetail());
+                // If provider is missing, describe the authorization detail from the values the client sent, so the
+                // consent page shows what is being requested instead of just the type name.
+                .orElseGet(() -> withDefaultConsentDescription(
+                        authorizationDetailsContext.getAuthorizationDetail()));
+    }
+
+    /**
+     * Sets a consent description built from the requested values on an authorization detail that does not already
+     * carry one. A registered processor is always preferred: it can author text meant for a human, whereas this is a
+     * rendering of the request itself.
+     *
+     * @param authorizationDetail The validated authorization detail.
+     * @return The same authorization detail, with a consent description when one could be built.
+     */
+    private AuthorizationDetail withDefaultConsentDescription(final AuthorizationDetail authorizationDetail) {
+
+        if (authorizationDetail != null && StringUtils.isBlank(authorizationDetail.getDescription())) {
+            authorizationDetail.setDescription(
+                    AuthorizationDetailsCommonUtils.buildDefaultConsentDescription(authorizationDetail));
+        }
+        return authorizationDetail;
     }
 
     private void assertAuthorizationDetailTypeSupported(final String type)

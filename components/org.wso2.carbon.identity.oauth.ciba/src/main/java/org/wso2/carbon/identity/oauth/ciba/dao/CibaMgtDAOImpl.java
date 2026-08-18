@@ -73,6 +73,33 @@ public class CibaMgtDAOImpl implements CibaMgtDAO {
     }
 
     @Override
+    public void updateAuthorizationDetails(String authCodeKey, String authorizationDetails)
+            throws CibaCoreException {
+
+        try (Connection connection = IdentityDatabaseUtil.getDBConnection(true)) {
+            try (PreparedStatement prepStmt = connection.prepareStatement(SQLQueries.
+                    CibaSQLQueries.UPDATE_AUTHORIZATION_DETAILS)) {
+
+                prepStmt.setString(1, authorizationDetails);
+                prepStmt.setString(2, authCodeKey);
+                prepStmt.execute();
+                IdentityDatabaseUtil.commitTransaction(connection);
+                if (log.isDebugEnabled()) {
+                    log.debug("Successfully persisted the approved authorization details identified by authCodeKey: " +
+                            authCodeKey);
+                }
+            } catch (SQLException e) {
+                IdentityDatabaseUtil.rollbackTransaction(connection);
+                throw new CibaCoreException(
+                        "Error occurred in persisting authorization details for the authCodeKey: " + authCodeKey, e);
+            }
+        } catch (SQLException e) {
+            throw new CibaCoreException(
+                    "Error occurred in persisting authorization details for the authCodeKey: " + authCodeKey, e);
+        }
+    }
+
+    @Override
     public void persistAuthenticationSuccess(String authCodeKey, AuthenticatedUser authenticatedUser)
             throws CibaCoreException {
 
@@ -275,6 +302,7 @@ public class CibaMgtDAOImpl implements CibaMgtDAO {
                 prepStmt.setString(8, cibaAuthCodeDO.getAuthReqStatus().toString());
                 prepStmt.setString(9, cibaAuthCodeDO.getResolvedUserId());
                 prepStmt.setString(10, cibaAuthCodeDO.getRequestedActor());
+                prepStmt.setString(11, cibaAuthCodeDO.getAuthorizationDetails());
                 prepStmt.execute();
 
                 if (log.isDebugEnabled()) {
@@ -343,6 +371,7 @@ public class CibaMgtDAOImpl implements CibaMgtDAO {
                                         Calendar.getInstance(TimeZone.getTimeZone(CibaConstants.UTC))));
                         cibaAuthCodeDO.setIdpId(resultSet.getInt(9));
                         cibaAuthCodeDO.setRequestedActor(resultSet.getString(10));
+                        cibaAuthCodeDO.setAuthorizationDetails(resultSet.getString(11));
                     } else {
                         return null;
                     }

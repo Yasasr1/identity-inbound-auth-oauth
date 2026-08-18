@@ -28,11 +28,17 @@ import org.apache.commons.logging.LogFactory;
 import org.wso2.carbon.identity.oauth.rar.model.AuthorizationDetail;
 import org.wso2.carbon.identity.oauth.rar.model.AuthorizationDetails;
 
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.wso2.carbon.identity.oauth.rar.util.AuthorizationDetailsConstants.EMPTY_JSON_ARRAY;
 import static org.wso2.carbon.identity.oauth.rar.util.AuthorizationDetailsConstants.EMPTY_JSON_OBJECT;
@@ -46,6 +52,16 @@ public class AuthorizationDetailsCommonUtils {
 
     private static volatile ObjectMapper objectMapper;
     private static final TypeReference<Map<String, Object>> TYPE_MAP = new TypeReference<Map<String, Object>>() { };
+
+    private static final String FIELD_SEPARATOR = ", ";
+    private static final String FIELD_VALUE_SEPARATOR = ": ";
+    private static final String LIST_VALUE_SEPARATOR = ", ";
+    // The type heads a generated consent description, and '_id'/'_description' are ours rather than the client's.
+    private static final List<String> INTERNAL_AUTHORIZATION_DETAIL_FIELDS =
+            Collections.unmodifiableList(Arrays.asList("type", "_id", "_description"));
+    // RFC 9396 common data fields, rendered ahead of the API specific ones and in the order the RFC lists them.
+    private static final List<String> COMMON_DATA_FIELDS = Collections.unmodifiableList(
+            Arrays.asList("locations", "actions", "datatypes", "identifier", "privileges"));
 
     private AuthorizationDetailsCommonUtils() {
         // Private constructor to prevent instantiation
@@ -97,6 +113,77 @@ public class AuthorizationDetailsCommonUtils {
             log.debug("Error occurred while parsing String to AuthorizationDetails. Caused by, ", e);
         }
         return null;
+    }
+
+    /**
+     * Builds a consent description for an authorization detail out of the values the client actually sent, for use
+     * when no {@link org.wso2.carbon.identity.oauth.rar.core.AuthorizationDetailsSchemaValidator} aware processor is
+     * registered for its type to author a better one.
+     * <p>
+     * The result reads as {@code type (field: value, field: value)} with the RFC 9396 common data fields first and the
+     * API specific fields after them, both in a stable order. Nested values are rendered as compact JSON. A detail
+     * carrying nothing but a {@code type} yields just the type, which is what the consent page displayed before.
+     * </p>
+     *
+     * @param authorizationDetail The authorization detail to describe.
+     * @return A human readable description of the authorization detail, or {@code null} if there is nothing to
+     * describe.
+     * @see AuthorizationDetail#getDescriptionOrDefault(java.util.function.Function)
+     */
+    public static String buildDefaultConsentDescription(final AuthorizationDetail authorizationDetail) {
+
+        if (authorizationDetail == null || StringUtils.isBlank(authorizationDetail.getType())) {
+            return null;
+        }
+
+        final Map<String, Object> allFields = toMap(authorizationDetail);
+        /*
+         * Order the fields explicitly: the same request has to produce the same description every time, since it is
+         * what the user reads and what is persisted with their consent. The field map is not ordered on its own.
+         */
+        final Map<String, Object> fields = new LinkedHashMap<>();
+        COMMON_DATA_FIELDS.stream().filter(allFields::containsKey)
+                .forEach(field -> fields.put(field, allFields.get(field)));
+        allFields.keySet().stream()
+                .filter(field -> !COMMON_DATA_FIELDS.contains(field))
+                // The type heads the description, and the internal fields are not the client's to display.
+                .filter(field -> !INTERNAL_AUTHORIZATION_DETAIL_FIELDS.contains(field))
+                .sorted()
+                .forEach(field -> fields.put(field, allFields.get(field)));
+
+        final String renderedFields = fields.entrySet().stream()
+                .filter(field -> field.getValue() != null)
+                .map(field -> field.getKey() + FIELD_VALUE_SEPARATOR + renderFieldValue(field.getValue()))
+                .collect(Collectors.joining(FIELD_SEPARATOR));
+
+        return StringUtils.isBlank(renderedFields) ? authorizationDetail.getType()
+                : authorizationDetail.getType() + " (" + renderedFields + ")";
+    }
+
+    /**
+     * Renders a single authorization detail field value. Scalars are rendered as they were sent; lists are comma
+     * separated; anything structured falls back to compact JSON so no requested value is hidden from the user.
+     *
+     * @param value The field value.
+     * @return The rendered value.
+     */
+    private static String renderFieldValue(final Object value) {
+
+        if (value instanceof Collection) {
+            return ((Collection<?>) value).stream()
+                    .filter(Objects::nonNull)
+                    .map(AuthorizationDetailsCommonUtils::renderFieldValue)
+                    .collect(Collectors.joining(LIST_VALUE_SEPARATOR));
+        }
+        if (value instanceof Map) {
+            try {
+                return getDefaultObjectMapper().writeValueAsString(value);
+            } catch (JsonProcessingException e) {
+                log.debug("Unable to render an authorization detail field value as JSON. Caused by, ", e);
+                return String.valueOf(value);
+            }
+        }
+        return String.valueOf(value);
     }
 
     /**

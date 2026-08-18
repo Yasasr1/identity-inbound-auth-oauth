@@ -324,9 +324,13 @@ public class OAuth2CibaEndpoint {
         if (params.get(CibaConstants.NOTIFICATION_CHANNEL) != null) {
             cibaAuthCodeRequest.setNotificationChannel(params.get(CibaConstants.NOTIFICATION_CHANNEL));
         }
+
+        if (StringUtils.isNotBlank(params.get(CibaConstants.AUTHORIZATION_DETAILS))) {
+            cibaAuthCodeRequest.setAuthorizationDetails(cibaAuthRequestValidator
+                    .validateAuthorizationDetails(params.get(CibaConstants.AUTHORIZATION_DETAILS)));
+        }
         return cibaAuthCodeRequest;
     }
-
 
     /**
      * Validate whether Request JWT is in proper formatting.

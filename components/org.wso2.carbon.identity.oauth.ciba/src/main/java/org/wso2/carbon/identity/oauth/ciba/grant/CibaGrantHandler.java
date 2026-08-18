@@ -33,10 +33,12 @@ import org.wso2.carbon.identity.oauth.ciba.dao.CibaDAOFactory;
 import org.wso2.carbon.identity.oauth.ciba.exceptions.CibaCoreException;
 import org.wso2.carbon.identity.oauth.ciba.model.CibaAuthCodeDO;
 import org.wso2.carbon.identity.oauth.common.OAuthConstants;
+import org.wso2.carbon.identity.oauth.rar.model.AuthorizationDetails;
 import org.wso2.carbon.identity.oauth2.IdentityOAuth2Exception;
 import org.wso2.carbon.identity.oauth2.dto.OAuth2AccessTokenRespDTO;
 import org.wso2.carbon.identity.oauth2.internal.OAuth2ServiceComponentHolder;
 import org.wso2.carbon.identity.oauth2.model.RequestParameter;
+import org.wso2.carbon.identity.oauth2.rar.util.AuthorizationDetailsUtils;
 import org.wso2.carbon.identity.oauth2.token.OAuthTokenReqMessageContext;
 import org.wso2.carbon.identity.oauth2.token.handlers.grant.AbstractAuthorizationGrantHandler;
 import org.wso2.carbon.identity.oauth2.util.OAuth2Util;
@@ -305,6 +307,15 @@ public class CibaGrantHandler extends AbstractAuthorizationGrantHandler {
 
         tokReqMsgCtx.setAuthorizedUser(cibaAuthCodeDO.getAuthenticatedUser());
         tokReqMsgCtx.setScope(cibaAuthCodeDO.getScopes());
+        /*
+         * Carry the authorization details the user approved into the token, the way the authorization code grant
+         * carries the ones bound to the code. The internal fields are trimmed off since they are not part of the
+         * RFC 9396 representation the token exposes.
+         */
+        if (StringUtils.isNotBlank(cibaAuthCodeDO.getAuthorizationDetails())) {
+            tokReqMsgCtx.setAuthorizationDetails(AuthorizationDetailsUtils.getTrimmedAuthorizationDetails(
+                    new AuthorizationDetails(cibaAuthCodeDO.getAuthorizationDetails())));
+        }
         if (IdentityUtil.isAgentIdentityEnabled()
                 && StringUtils.isNotBlank(cibaAuthCodeDO.getRequestedActor())) {
             tokReqMsgCtx.setRequestedActor(cibaAuthCodeDO.getRequestedActor());

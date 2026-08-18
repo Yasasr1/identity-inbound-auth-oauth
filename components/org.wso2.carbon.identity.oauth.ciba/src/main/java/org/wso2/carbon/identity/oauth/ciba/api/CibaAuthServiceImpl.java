@@ -343,6 +343,7 @@ public class CibaAuthServiceImpl implements CibaAuthService {
         cibaAuthCodeDO.setExpiresIn(expiryTime);
         cibaAuthCodeDO.setScopes(scopes);
         cibaAuthCodeDO.setRequestedActor(cibaAuthCodeRequest.getRequestedActor());
+        cibaAuthCodeDO.setAuthorizationDetails(cibaAuthCodeRequest.getAuthorizationDetails());
         return cibaAuthCodeDO;
     }
 

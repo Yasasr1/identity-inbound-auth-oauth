@@ -41,6 +41,7 @@ public class CibaAuthCodeDO {
     private String resolvedUserId;
     private int idpId;
     private String requestedActor;
+    private String authorizationDetails;
 
     public String getCibaAuthCodeKey() {
 
@@ -172,5 +173,27 @@ public class CibaAuthCodeDO {
     public void setRequestedActor(String requestedActor) {
 
         this.requestedActor = requestedActor;
+    }
+
+    /**
+     * Returns the 'authorization_details' requested by the CIBA authentication request, as the raw JSON array
+     * string it was received in. These are replayed on the authorization request the user is sent through, so the
+     * consent page can display them.
+     *
+     * @return Requested authorization details, or {@code null} if the request was not a rich authorization request.
+     */
+    public String getAuthorizationDetails() {
+
+        return authorizationDetails;
+    }
+
+    /**
+     * Sets the 'authorization_details' requested by the CIBA authentication request.
+     *
+     * @param authorizationDetails Requested authorization details as a JSON array string.
+     */
+    public void setAuthorizationDetails(String authorizationDetails) {
+
+        this.authorizationDetails = authorizationDetails;
     }
 }

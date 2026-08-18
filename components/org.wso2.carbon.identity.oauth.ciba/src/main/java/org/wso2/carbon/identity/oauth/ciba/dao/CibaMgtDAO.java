@@ -97,6 +97,21 @@ public interface CibaMgtDAO {
     }
 
     /**
+     * Replaces the authorization details of the CIBA authentication request with the ones the user approved.
+     * Until the user approves, the stored value is the authorization details the client requested; afterwards it is
+     * the validated set that was displayed to and approved by the user, which is what the issued token carries.
+     *
+     * @param authCodeKey          Identifier of CibaAuthCode.
+     * @param authorizationDetails Approved authorization details as a JSON array string.
+     * @throws CibaCoreException Exception thrown from CIBA core Component.
+     */
+    default void updateAuthorizationDetails(String authCodeKey, String authorizationDetails)
+            throws CibaCoreException {
+
+        throw new UnsupportedOperationException("updateAuthorizationDetails is not implemented");
+    }
+
+    /**
      * Persists the CibaAuthCodeDO.
      *
      * @param cibaAuthCodeDO Data object that accumulates  CibaAuthCode.

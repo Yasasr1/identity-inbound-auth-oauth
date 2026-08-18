@@ -163,6 +163,16 @@ public class CibaUserAuthenticationEndpoint {
             commonAuthRequestWrapper.setParameter(
                     org.wso2.carbon.identity.openidconnect.model.Constants.NONCE,
                     cibaAuthCodeDO.getAuthReqId());
+
+            /*
+             * Replay the authorization_details requested by the backchannel request. Without this the authorization
+             * flow is not a rich authorization request at all, so the requested authorization details are neither
+             * validated, nor shown on the consent page, nor consented to.
+             */
+            if (StringUtils.isNotBlank(cibaAuthCodeDO.getAuthorizationDetails())) {
+                commonAuthRequestWrapper.setParameter(CibaConstants.AUTHORIZATION_DETAILS,
+                        cibaAuthCodeDO.getAuthorizationDetails());
+            }
             
             // Mark PKCE as unsupported for CIBA flow
             commonAuthRequestWrapper.setAttribute(OAuthConstants.PKCE_UNSUPPORTED_FLOW, true);

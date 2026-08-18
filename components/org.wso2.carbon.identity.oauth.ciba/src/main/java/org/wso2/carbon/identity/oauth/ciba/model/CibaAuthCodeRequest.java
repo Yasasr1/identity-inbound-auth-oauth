@@ -45,6 +45,28 @@ public class CibaAuthCodeRequest {
     private String requestedActor;
     private Map<String, String> actorTokenClaims = new HashMap<>();
     private boolean authenticatedWithAgentJWT;
+    private String authorizationDetails;
+
+    /**
+     * Returns the 'authorization_details' sent with the CIBA authentication request, as the raw JSON array
+     * string it was received in.
+     *
+     * @return Requested authorization details, or {@code null} if the request was not a rich authorization request.
+     */
+    public String getAuthorizationDetails() {
+
+        return authorizationDetails;
+    }
+
+    /**
+     * Sets the 'authorization_details' sent with the CIBA authentication request.
+     *
+     * @param authorizationDetails Requested authorization details as a JSON array string.
+     */
+    public void setAuthorizationDetails(String authorizationDetails) {
+
+        this.authorizationDetails = authorizationDetails;
+    }
 
     /**
      * Returns the claims carried in the actor token sent with the CIBA authentication request.

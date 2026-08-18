@@ -47,6 +47,7 @@ public class CibaConstants {
     public static final String EXPIRES_IN = "expires_in";
     public static final String NOTIFICATION_CHANNEL = "notification_channel";
     public static final String AUTH_URL = "auth_url";
+    public static final String AUTHORIZATION_DETAILS = "authorization_details";
 
     // Local claim URI of the agent owner attribute, used for agent CIBA owner binding.
     public static final String AGENT_OWNER_CLAIM_URI = "http://wso2.org/claims/agent/Owner";

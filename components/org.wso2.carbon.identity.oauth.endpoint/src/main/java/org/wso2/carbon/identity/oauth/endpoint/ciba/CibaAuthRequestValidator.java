@@ -27,6 +27,9 @@ import com.nimbusds.jwt.SignedJWT;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 import org.wso2.carbon.context.CarbonContext;
 import org.wso2.carbon.identity.core.ServiceURLBuilder;
 import org.wso2.carbon.identity.core.URLBuilderException;
@@ -61,6 +64,9 @@ import static org.wso2.carbon.identity.oauth.endpoint.util.EndpointUtil.OAUTH2_C
 public class CibaAuthRequestValidator {
 
     private static final Log log = LogFactory.getLog(CibaAuthRequestValidator.class);
+
+    // The mandatory field of an RFC 9396 authorization details object.
+    private static final String AUTHORIZATION_DETAILS_TYPE = "type";
 
     /**
      * Validate CIBA Authentication Request.
@@ -832,11 +838,71 @@ public class CibaAuthRequestValidator {
             } else {
                 cibaAuthCodeRequest.setRequestedExpiry(0);
             }
+
+            // Setting authorization_details to AuthenticationRequest. The claim is read off the raw payload rather
+            // than the claim set so the JSON array is carried through exactly as the client sent it.
+            cibaAuthCodeRequest.setAuthorizationDetails(
+                    extractAuthorizationDetails(signedJWT.getPayload().toString()));
         } catch (ParseException e) {
             throw new CibaAuthFailureException(OAuth2ErrorCodes.SERVER_ERROR,
                     "Error when processing request parameters.", e);
         }
         return cibaAuthCodeRequest;
+    }
+
+    /**
+     * Extracts the 'authorization_details' claim of a CIBA request object as a JSON array string.
+     *
+     * @param payload The JSON payload of the CIBA request object.
+     * @return The authorization details as a JSON array string, or {@code null} when the claim is absent.
+     * @throws CibaAuthFailureException If the claim is present but is not a valid authorization details array.
+     */
+    private String extractAuthorizationDetails(String payload) throws CibaAuthFailureException {
+
+        JSONObject payloadJson;
+        try {
+            payloadJson = new JSONObject(payload);
+        } catch (JSONException e) {
+            throw new CibaAuthFailureException(OAuth2ErrorCodes.INVALID_REQUEST,
+                    "Malformed CIBA request object payload.", e);
+        }
+        if (!payloadJson.has(CibaConstants.AUTHORIZATION_DETAILS)) {
+            return null;
+        }
+        return validateAuthorizationDetails(payloadJson.get(CibaConstants.AUTHORIZATION_DETAILS).toString());
+    }
+
+    /**
+     * Validates that a requested 'authorization_details' value is a well formed JSON array of objects, each carrying
+     * a 'type'. The requested types themselves are validated against the ones the application is authorized for when
+     * the user is sent through the authorization flow, the same way they are for a front-channel request.
+     *
+     * @param authorizationDetails The requested authorization details.
+     * @return The authorization details, normalized to a JSON array string.
+     * @throws CibaAuthFailureException If the value is not a JSON array of objects carrying a 'type'.
+     */
+    public String validateAuthorizationDetails(String authorizationDetails) throws CibaAuthFailureException {
+
+        try {
+            JSONArray authorizationDetailsArray = new JSONArray(authorizationDetails);
+            if (authorizationDetailsArray.isEmpty()) {
+                throw new CibaAuthFailureException(OAuth2ErrorCodes.INVALID_REQUEST,
+                        "The authorization_details parameter must not be an empty array.");
+            }
+            for (int index = 0; index < authorizationDetailsArray.length(); index++) {
+                JSONObject authorizationDetail = authorizationDetailsArray.optJSONObject(index);
+                if (authorizationDetail == null || StringUtils.isBlank(
+                        authorizationDetail.optString(AUTHORIZATION_DETAILS_TYPE, null))) {
+                    throw new CibaAuthFailureException(OAuth2ErrorCodes.INVALID_REQUEST,
+                            "Every entry of the authorization_details parameter must be a JSON object with a " +
+                                    "'type' field.");
+                }
+            }
+            return authorizationDetailsArray.toString();
+        } catch (JSONException e) {
+            throw new CibaAuthFailureException(OAuth2ErrorCodes.INVALID_REQUEST,
+                    "The authorization_details parameter must be a JSON array.", e);
+        }
     }
 
     /**
